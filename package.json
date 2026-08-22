@@ -16,6 +16,8 @@
     "axios": "^1.7.9",
     "cal-heatmap": "^4.2.4",
     "pinia": "^2.3.0",
+    "tweetnacl": "^1.0.3",
+    "tweetnacl-util": "^0.15.1",
     "vue": "^3.5.13",
     "vue-router": "^4.5.0"
   },

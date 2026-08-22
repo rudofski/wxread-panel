@@ -1,4 +1,5 @@
 import { Octokit } from '@octokit/rest';
+import { sealedBoxEncryptToBase64 } from '@/utils/sealedBox';
 
 let octokit: Octokit | null = null;
 
@@ -65,12 +66,8 @@ export async function updateVariable(owner: string, repo: string, name: string, 
 export async function updateSecret(owner: string, repo: string, name: string, value: string): Promise<void> {
   const client = getOctokit();
   const { data: pubKey } = await client.request('GET /repos/{owner}/{repo}/actions/secrets/public-key', { owner, repo });
-  const encoder = new TextEncoder();
-  const data = encoder.encode(value);
-  const keyData = Uint8Array.from(atob(pubKey.key), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey('spki', keyData, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
-  const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, key, data);
-  const encryptedValue = btoa(String.fromCharCode(...new Uint8Array(encrypted)));
+  // GitHub Secrets 使用 libsodium sealed box（curve25519）加密，而非 RSA
+  const encryptedValue = sealedBoxEncryptToBase64(new TextEncoder().encode(value), pubKey.key);
   await client.request('PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}', {
     owner, repo, secret_name: name, encrypted_value: encryptedValue, key_id: pubKey.key_id,
   });
