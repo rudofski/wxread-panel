@@ -26,21 +26,21 @@
 - 创建：`src/env.d.ts`
 - 创建：`public/favicon.ico`
 
-- [ ] **步骤 1：初始化 package.json**
+- [x] **步骤 1：初始化 package.json**
 
 ```bash
 mkdir wxread-panel && cd wxread-panel
 npm init -y
 ```
 
-- [ ] **步骤 2：安装核心依赖**
+- [x] **步骤 2：安装核心依赖**
 
 ```bash
 npm install vue vue-router pinia @octokit/rest @octokit/auth-oauth-user axios cal-heatmap
 npm install -D vite @vitejs/plugin-vue typescript vue-tsc vitest @vue/test-utils happy-dom msw playwright @playwright/test
 ```
 
-- [ ] **步骤 3：编写 vite.config.ts**
+- [x] **步骤 3：编写 vite.config.ts**
 
 ```typescript
 import { defineConfig } from 'vite';
@@ -55,7 +55,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **步骤 4：编写 tsconfig.json**
+- [x] **步骤 4：编写 tsconfig.json**
 
 ```json
 {
@@ -79,7 +79,7 @@ export default defineConfig({
 }
 ```
 
-- [ ] **步骤 5：编写 tsconfig.node.json**
+- [x] **步骤 5：编写 tsconfig.node.json**
 
 ```json
 {
@@ -94,7 +94,7 @@ export default defineConfig({
 }
 ```
 
-- [ ] **步骤 6：编写 index.html**
+- [x] **步骤 6：编写 index.html**
 
 ```html
 <!DOCTYPE html>
@@ -112,7 +112,7 @@ export default defineConfig({
 </html>
 ```
 
-- [ ] **步骤 7：编写 src/env.d.ts**
+- [x] **步骤 7：编写 src/env.d.ts**
 
 ```typescript
 /// <reference types="vite/client" />
@@ -124,7 +124,7 @@ declare module '*.vue' {
 }
 ```
 
-- [ ] **步骤 8：编写 src/main.ts**
+- [x] **步骤 8：编写 src/main.ts**
 
 ```typescript
 import { createApp } from 'vue';
@@ -138,7 +138,7 @@ app.use(router);
 app.mount('#app');
 ```
 
-- [ ] **步骤 9：编写 src/App.vue（最小骨架）**
+- [x] **步骤 9：编写 src/App.vue（最小骨架）**
 
 ```vue
 <template>
@@ -152,7 +152,7 @@ app.mount('#app');
 </script>
 ```
 
-- [ ] **步骤 10：编写 src/router.ts（最小骨架）**
+- [x] **步骤 10：编写 src/router.ts（最小骨架）**
 
 ```typescript
 import { createRouter, createWebHashHistory } from 'vue-router';
@@ -173,7 +173,7 @@ const router = createRouter({
 export default router;
 ```
 
-- [ ] **步骤 11：验证项目可启动**
+- [x] **步骤 11：验证项目可启动**
 
 ```bash
 npx vite --port 3000
@@ -181,7 +181,7 @@ npx vite --port 3000
 
 预期：打开 http://localhost:3000 看到 "wxread 控制面板" 文字。
 
-- [ ] **步骤 12：更新 package.json scripts**
+- [x] **步骤 12：更新 package.json scripts**
 
 ```json
 {
@@ -196,7 +196,7 @@ npx vite --port 3000
 }
 ```
 
-- [ ] **步骤 13：Commit**
+- [x] **步骤 13：Commit**
 
 ```bash
 git add -A
@@ -210,7 +210,7 @@ git commit -m "feat: scaffold Vue 3 + Vite + TypeScript project with Pinia and R
 **文件：**
 - 创建：`.github/workflows/deploy.yml`
 
-- [ ] **步骤 1：编写 deploy.yml**
+- [x] **步骤 1：编写 deploy.yml**
 
 ```yaml
 name: Deploy to GitHub Pages
@@ -253,13 +253,13 @@ jobs:
           cname: ''
 ```
 
-- [ ] **步骤 2：验证 CI 配置语法正确**
+- [x] **步骤 2：验证 CI 配置语法正确**
 
 ```bash
 # 无直接验证命令，检查 YAML 结构无误即可
 ```
 
-- [ ] **步骤 3：Commit**
+- [x] **步骤 3：Commit**
 
 ```bash
 git add .github/workflows/deploy.yml
@@ -276,7 +276,7 @@ git commit -m "ci: add GitHub Pages deploy workflow"
 - 创建：`src/components/Sidebar.vue`
 - 修改：`src/main.ts`
 
-- [ ] **步骤 1：编写 main.css 全局样式**
+- [x] **步骤 1：编写 main.css 全局样式**
 
 ```css
 :root {
@@ -410,7 +410,7 @@ body {
 .status-dot.error { background: var(--color-danger); }
 ```
 
-- [ ] **步骤 2：编写 Sidebar.vue**
+- [x] **步骤 2：编写 Sidebar.vue**
 
 ```vue
 <template>
@@ -514,7 +514,7 @@ function logout() {
 </style>
 ```
 
-- [ ] **步骤 3：更新 App.vue 为完整布局**
+- [x] **步骤 3：更新 App.vue 为完整布局**
 
 ```vue
 <template>
@@ -541,7 +541,7 @@ const authStore = useAuthStore();
 </style>
 ```
 
-- [ ] **步骤 4：更新 main.ts 导入样式**
+- [x] **步骤 4：更新 main.ts 导入样式**
 
 ```typescript
 import { createApp } from 'vue';
@@ -555,7 +555,7 @@ app.use(router);
 app.mount('#app');
 ```
 
-- [ ] **步骤 5：验证布局**
+- [x] **步骤 5：验证布局**
 
 ```bash
 npx vite --port 3000
@@ -563,7 +563,7 @@ npx vite --port 3000
 
 预期：看到深色侧边栏（5 个导航项）+ 右侧空白主内容区。此时无需登录也可看到布局。
 
-- [ ] **步骤 6：Commit**
+- [x] **步骤 6：Commit**
 
 ```bash
 git add src/assets/styles/main.css src/App.vue src/components/Sidebar.vue src/main.ts
@@ -581,7 +581,7 @@ git commit -m "feat: add global styles, sidebar layout, and app shell"
 - 修改：`src/router.ts`
 - 创建：`src/views/Login.vue`
 
-- [ ] **步骤 1：编写 auth store**
+- [x] **步骤 1：编写 auth store**
 
 ```typescript
 // src/stores/auth.ts
@@ -647,7 +647,7 @@ export const useAuthStore = defineStore('auth', () => {
 });
 ```
 
-- [ ] **步骤 2：编写 Login.vue**
+- [x] **步骤 2：编写 Login.vue**
 
 ```vue
 <template>
@@ -793,7 +793,7 @@ async function manualLogin() {
 </style>
 ```
 
-- [ ] **步骤 3：更新 router.ts 加入路由和 OAuth 回调**
+- [x] **步骤 3：更新 router.ts 加入路由和 OAuth 回调**
 
 ```typescript
 import { createRouter, createWebHashHistory } from 'vue-router';
@@ -872,7 +872,7 @@ router.beforeEach(async (to, _from, next) => {
 export default router;
 ```
 
-- [ ] **步骤 4：验证登录流程**
+- [x] **步骤 4：验证登录流程**
 
 ```bash
 # 创建 .env 文件配置 OAuth（本地开发）
@@ -882,7 +882,7 @@ npx vite --port 3000
 
 预期：启动后看到登录页面。点击"GitHub 授权登录"跳转 GitHub。
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add src/stores/auth.ts src/views/Login.vue src/router.ts .env.local
@@ -897,7 +897,7 @@ git commit -m "feat: add GitHub OAuth authentication with token and manual input
 - 创建：`src/api/github.ts`
 - 创建：`tests/api/github.test.ts`
 
-- [ ] **步骤 1：编写失败的单元测试**
+- [x] **步骤 1：编写失败的单元测试**
 
 ```typescript
 // tests/api/github.test.ts
@@ -949,13 +949,13 @@ describe('GitHub API Client', () => {
 });
 ```
 
-- [ ] **步骤 2：运行测试验证失败**
+- [x] **步骤 2：运行测试验证失败**
 
 ```bash
 npx vitest run tests/api/github.test.ts
 ```
 
-- [ ] **步骤 3：编写 github.ts API 客户端**
+- [x] **步骤 3：编写 github.ts API 客户端**
 
 ```typescript
 // src/api/github.ts
@@ -1258,13 +1258,13 @@ export const wxreadAdapter = {
 };
 ```
 
-- [ ] **步骤 4：运行测试**
+- [x] **步骤 4：运行测试**
 
 ```bash
 npx vitest run tests/api/github.test.ts
 ```
 
-- [ ] **步骤 5：Commit**
+- [x] **步骤 5：Commit**
 
 ```bash
 git add src/api/github.ts tests/api/github.test.ts
@@ -1279,7 +1279,7 @@ git commit -m "feat: add GitHub API client with adapter layer, secrets encryptio
 - 创建：`src/api/weread.ts`
 - 创建：`tests/api/weread.test.ts`
 
-- [ ] **步骤 1：编写 weread.ts**
+- [x] **步骤 1：编写 weread.ts**
 
 ```typescript
 // src/api/weread.ts
@@ -1374,7 +1374,7 @@ export function parseBookLibrary(value: string): BookLibraryEntry[] {
 }
 ```
 
-- [ ] **步骤 2：编写测试**
+- [x] **步骤 2：编写测试**
 
 ```typescript
 // tests/api/weread.test.ts
@@ -1440,7 +1440,7 @@ describe('weread API utils', () => {
 });
 ```
 
-- [ ] **步骤 3：运行测试**
+- [x] **步骤 3：运行测试**
 
 ```bash
 npx vitest run tests/api/weread.test.ts
@@ -1448,7 +1448,7 @@ npx vitest run tests/api/weread.test.ts
 
 预期：7 个测试全部通过。
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add src/api/weread.ts tests/api/weread.test.ts
@@ -1465,7 +1465,7 @@ git commit -m "feat: add WeRead book search API and library serialization utils"
 - 创建：`src/stores/settings.ts`
 - 创建：`tests/stores/settings.test.ts`
 
-- [ ] **步骤 1：编写 settings store**
+- [x] **步骤 1：编写 settings store**
 
 ```typescript
 // src/stores/settings.ts
@@ -1567,7 +1567,7 @@ export const useSettingsStore = defineStore('settings', () => {
 });
 ```
 
-- [ ] **步骤 2：编写 store 测试**
+- [x] **步骤 2：编写 store 测试**
 
 ```typescript
 // tests/stores/settings.test.ts
@@ -1611,7 +1611,7 @@ describe('settings store', () => {
 });
 ```
 
-- [ ] **步骤 3：运行测试**
+- [x] **步骤 3：运行测试**
 
 ```bash
 npx vitest run tests/stores/settings.test.ts
@@ -1619,7 +1619,7 @@ npx vitest run tests/stores/settings.test.ts
 
 预期：5 个测试全部通过。
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add src/stores/settings.ts tests/stores/settings.test.ts
@@ -1633,7 +1633,7 @@ git commit -m "feat: add settings Pinia store with repo connection and config sy
 **文件：**
 - 创建：`src/views/Dashboard.vue`
 
-- [ ] **步骤 1：编写 Dashboard.vue**
+- [x] **步骤 1：编写 Dashboard.vue**
 
 ```vue
 <template>
@@ -1822,7 +1822,7 @@ onMounted(loadRecentRuns);
 </style>
 ```
 
-- [ ] **步骤 2：验证页面渲染**
+- [x] **步骤 2：验证页面渲染**
 
 ```bash
 npx vite --port 3000
@@ -1830,7 +1830,7 @@ npx vite --port 3000
 
 预期：登录后看到仪表盘，包含控制入口 URL、三个状态卡片、快捷操作按钮。
 
-- [ ] **步骤 3：Commit**
+- [x] **步骤 3：Commit**
 
 ```bash
 git add src/views/Dashboard.vue
@@ -1848,7 +1848,7 @@ git commit -m "feat: add Dashboard page with status monitoring, control entry UR
 - 创建：`src/components/config/PushConfig.vue`
 - 创建：`src/components/config/ReadConfig.vue`
 
-- [ ] **步骤 1：编写 RepoInput.vue**
+- [x] **步骤 1：编写 RepoInput.vue**
 
 ```vue
 <template>
@@ -1933,7 +1933,7 @@ onMounted(() => {
 </style>
 ```
 
-- [ ] **步骤 2：编写 LoginConfig.vue**
+- [x] **步骤 2：编写 LoginConfig.vue**
 
 ```vue
 <template>
@@ -2025,7 +2025,7 @@ async function validateLogin() {
 </style>
 ```
 
-- [ ] **步骤 3：编写 PushConfig.vue**
+- [x] **步骤 3：编写 PushConfig.vue**
 
 ```vue
 <template>
@@ -2113,7 +2113,7 @@ watch(token, v => { settings.wxpusherToken = v; });
 </style>
 ```
 
-- [ ] **步骤 4：编写 ReadConfig.vue**
+- [x] **步骤 4：编写 ReadConfig.vue**
 
 ```vue
 <template>
@@ -2194,7 +2194,7 @@ function setMinutes(val: number) {
 </style>
 ```
 
-- [ ] **步骤 5：编写 Config.vue 组装页面**
+- [x] **步骤 5：编写 Config.vue 组装页面**
 
 ```vue
 <template>
@@ -2263,7 +2263,7 @@ async function save() {
 </style>
 ```
 
-- [ ] **步骤 6：验证配置页面**
+- [x] **步骤 6：验证配置页面**
 
 ```bash
 npx vite --port 3000
@@ -2271,7 +2271,7 @@ npx vite --port 3000
 
 预期：配置页面展示 5 个卡片区域，完整渲染。
 
-- [ ] **步骤 7：Commit**
+- [x] **步骤 7：Commit**
 
 ```bash
 git add src/views/Config.vue src/components/config/RepoInput.vue src/components/config/LoginConfig.vue src/components/config/PushConfig.vue src/components/config/ReadConfig.vue
@@ -2290,7 +2290,7 @@ git commit -m "feat: add Config page with repo, login, push, and read settings c
 - 创建：`src/components/books/BookResults.vue`
 - 创建：`src/components/books/SelectedBooks.vue`
 
-- [ ] **步骤 1：编写 BookSearch.vue**
+- [x] **步骤 1：编写 BookSearch.vue**
 
 ```vue
 <template>
@@ -2338,7 +2338,7 @@ function search() {
 </style>
 ```
 
-- [ ] **步骤 2：编写 BookResults.vue**
+- [x] **步骤 2：编写 BookResults.vue**
 
 ```vue
 <template>
@@ -2422,7 +2422,7 @@ defineEmits<{
 </style>
 ```
 
-- [ ] **步骤 3：编写 SelectedBooks.vue**
+- [x] **步骤 3：编写 SelectedBooks.vue**
 
 ```vue
 <template>
@@ -2482,7 +2482,7 @@ defineEmits<{
 </style>
 ```
 
-- [ ] **步骤 4：编写 Books.vue 组装页面**
+- [x] **步骤 4：编写 Books.vue 组装页面**
 
 ```vue
 <template>
@@ -2558,7 +2558,7 @@ async function saveBooks() {
 </style>
 ```
 
-- [ ] **步骤 5：验证书城页面**
+- [x] **步骤 5：验证书城页面**
 
 ```bash
 npx vite --port 3000
@@ -2566,7 +2566,7 @@ npx vite --port 3000
 
 预期：书城搜索框 + 搜索结果 + 已选列表。搜索"三体"返回书籍。
 
-- [ ] **步骤 6：Commit**
+- [x] **步骤 6：Commit**
 
 ```bash
 git add src/views/Books.vue src/components/books/BookSearch.vue src/components/books/BookResults.vue src/components/books/SelectedBooks.vue
@@ -2583,7 +2583,7 @@ git commit -m "feat: add Books page with search, results, and selected books com
 - 创建：`src/components/task/ScheduleForm.vue`
 - 创建：`src/components/task/TaskList.vue`
 
-- [ ] **步骤 1：编写 RunButton.vue**
+- [x] **步骤 1：编写 RunButton.vue**
 
 ```vue
 <template>
@@ -2608,7 +2608,7 @@ defineEmits<{
 </script>
 ```
 
-- [ ] **步骤 2：编写 ScheduleForm.vue**
+- [x] **步骤 2：编写 ScheduleForm.vue**
 
 ```vue
 <template>
@@ -2679,7 +2679,7 @@ onMounted(() => {
 </style>
 ```
 
-- [ ] **步骤 3：编写 TaskList.vue**
+- [x] **步骤 3：编写 TaskList.vue**
 
 ```vue
 <template>
@@ -2788,7 +2788,7 @@ function formatDate(dateStr: string): string {
 </style>
 ```
 
-- [ ] **步骤 4：编写 Tasks.vue 组装页面**
+- [x] **步骤 4：编写 Tasks.vue 组装页面**
 
 ```vue
 <template>
@@ -2919,7 +2919,7 @@ onMounted(loadRuns);
 </style>
 ```
 
-- [ ] **步骤 5：验证任务页面**
+- [x] **步骤 5：验证任务页面**
 
 ```bash
 npx vite --port 3000
@@ -2927,7 +2927,7 @@ npx vite --port 3000
 
 预期：任务页展示定时设置 + 运行按钮 + 运行历史列表。
 
-- [ ] **步骤 6：Commit**
+- [x] **步骤 6：Commit**
 
 ```bash
 git add src/views/Tasks.vue src/components/task/RunButton.vue src/components/task/ScheduleForm.vue src/components/task/TaskList.vue
@@ -2942,7 +2942,7 @@ git commit -m "feat: add Tasks page with run, schedule, stop, and delete workflo
 - 创建：`src/views/Calendar.vue`
 - 创建：`src/components/calendar/Heatmap.vue`
 
-- [ ] **步骤 1：编写 Heatmap.vue**
+- [x] **步骤 1：编写 Heatmap.vue**
 
 ```vue
 <template>
@@ -3015,7 +3015,7 @@ watch(() => props.data, renderHeatmap, { deep: true });
 </style>
 ```
 
-- [ ] **步骤 2：编写 Calendar.vue**
+- [x] **步骤 2：编写 Calendar.vue**
 
 ```vue
 <template>
@@ -3191,7 +3191,7 @@ onMounted(loadData);
 </style>
 ```
 
-- [ ] **步骤 3：验证日历页面**
+- [x] **步骤 3：验证日历页面**
 
 ```bash
 npx vite --port 3000
@@ -3199,7 +3199,7 @@ npx vite --port 3000
 
 预期：显示年度热力图，统计区域显示成功/失败/成功率。
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add src/views/Calendar.vue src/components/calendar/Heatmap.vue
@@ -3216,7 +3216,7 @@ git commit -m "feat: add Calendar page with heatmap, date detail, and statistics
 - 创建：`public/curl-helper/index.html`
 - 创建：`public/curl-helper/bookmarklet.js`
 
-- [ ] **步骤 1：编写 bookmarklet.js**
+- [x] **步骤 1：编写 bookmarklet.js**
 
 ```javascript
 // 将此文件内容压缩为书签 URL
@@ -3250,7 +3250,7 @@ git commit -m "feat: add Calendar page with heatmap, date detail, and statistics
 })();
 ```
 
-- [ ] **步骤 2：编写 index.html（三合一工具页）**
+- [x] **步骤 2：编写 index.html（三合一工具页）**
 
 ```html
 <!DOCTYPE html>
@@ -3519,7 +3519,7 @@ git commit -m "feat: add Calendar page with heatmap, date detail, and statistics
 </html>
 ```
 
-- [ ] **步骤 3：验证 curl-helper**
+- [x] **步骤 3：验证 curl-helper**
 
 ```bash
 npx vite --port 3000
@@ -3528,7 +3528,7 @@ npx vite --port 3000
 
 预期：看到三种方式的书签工具页面。
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add public/curl-helper/index.html public/curl-helper/bookmarklet.js
@@ -3543,7 +3543,7 @@ git commit -m "feat: add curl-helper tool with bookmarklet, tutorial, and manual
 - 创建：`README.md`
 - 创建：`.env.example`
 
-- [ ] **步骤 1：编写 README.md**
+- [x] **步骤 1：编写 README.md**
 
 ```markdown
 # wxread-panel
@@ -3583,13 +3583,13 @@ npm run dev
 面板内置了 curl_bash 获取工具，访问 `/wxread-panel/curl-helper/` 即可使用。
 ```
 
-- [ ] **步骤 2：编写 .env.example**
+- [x] **步骤 2：编写 .env.example**
 
 ```env
 VITE_GITHUB_CLIENT_ID=your_oauth_client_id_here
 ```
 
-- [ ] **步骤 3：Commit**
+- [x] **步骤 3：Commit**
 
 ```bash
 git add README.md .env.example
@@ -3604,7 +3604,7 @@ git commit -m "docs: add README and env example"
 - 创建：`tests/e2e/smoke.spec.ts`
 - 修改：`package.json`（添加 test 配置）
 
-- [ ] **步骤 1：编写 vitest.config.ts**
+- [x] **步骤 1：编写 vitest.config.ts**
 
 ```typescript
 // vitest.config.ts
@@ -3625,7 +3625,7 @@ export default defineConfig({
 });
 ```
 
-- [ ] **步骤 2：编写 E2E smoke 测试**
+- [x] **步骤 2：编写 E2E smoke 测试**
 
 ```typescript
 // tests/e2e/smoke.spec.ts
@@ -3648,14 +3648,14 @@ test('登录页有手动 Token 输入', async ({ page }) => {
 });
 ```
 
-- [ ] **步骤 3：运行全部测试**
+- [x] **步骤 3：运行全部测试**
 
 ```bash
 npx vitest run
 npx playwright test
 ```
 
-- [ ] **步骤 4：Commit**
+- [x] **步骤 4：Commit**
 
 ```bash
 git add vitest.config.ts tests/e2e/smoke.spec.ts
