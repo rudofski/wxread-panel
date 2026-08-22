@@ -1,6 +1,20 @@
 <template>
   <div class="tasks-page"><h2 class="page-title">📋 任务管理</h2>
 
+    <div class="card"><div class="card-title">定时任务</div>
+      <div class="form-group"><label class="form-label schedule-toggle"><input type="checkbox" v-model="schedule.enabled" /> 启用每日定时运行</label></div>
+      <div v-if="schedule.enabled" class="schedule-settings">
+        <label class="form-label">运行时间</label>
+        <input type="time" v-model="schedule.time" class="form-input" style="width: 160px;" />
+        <span class="timezone">时区：Asia/Shanghai (UTC+8)</span>
+      </div>
+      <div class="schedule-actions">
+        <button class="btn btn-default" @click="saveScheduleSetting">💾 保存定时设置</button>
+        <span v-if="scheduleMsg" class="save-msg" :class="scheduleOk ? 'ok' : 'error'">{{ scheduleMsg }}</span>
+      </div>
+      <p class="form-hint">定时执行由 wxread 仓库的 GitHub Actions schedule(cron) 控制，此设置仅作面板记录与提醒。</p>
+    </div>
+
     <div class="card"><div class="card-title">操作</div>
       <div class="actions-row"><button class="btn btn-primary" :disabled="isRunning || !canRun" @click="runNow">{{ isRunning ? '运行中...' : '立即运行' }}</button><span v-if="!settings.repoInfo" class="hint">请先连接仓库</span><span v-else-if="settings.selectedBooks.length === 0" class="hint">请先选择书籍</span></div>
     </div>
@@ -24,8 +38,19 @@
 import { ref, computed, onMounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { dispatchWorkflow, listWorkflowRuns, getOctokit, type RunInfo } from '@/api/github';
+import { loadSchedule, saveSchedule, type Schedule } from '@/utils/schedule';
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]), loadingRuns = ref(false), isRunning = ref(false);
+const schedule = ref<Schedule>({ enabled: false, time: '08:00' });
+const scheduleMsg = ref(''), scheduleOk = ref(true);
+function saveScheduleSetting() {
+  try {
+    saveSchedule(schedule.value);
+    scheduleMsg.value = '✅ 定时设置已保存'; scheduleOk.value = true;
+  } catch (e: any) {
+    scheduleMsg.value = `❌ ${e.message}`; scheduleOk.value = false;
+  }
+}
 const canRun = computed(() => !!settings.repoInfo && settings.selectedBooks.length > 0);
 async function loadRuns() {
   if (!settings.repoInfo) return;
@@ -49,13 +74,20 @@ async function deleteRun(runId: number) {
   catch (e: any) { alert('删除失败：' + e.message); }
 }
 function formatDate(d: string): string { return new Date(d).toLocaleString('zh-CN'); }
-onMounted(loadRuns);
+onMounted(() => { loadRuns(); schedule.value = loadSchedule(); });
 </script>
 
 <style scoped>
 .tasks-page { max-width: 700px; }
 .actions-row { display: flex; align-items: center; gap: 12px; }
 .hint { font-size: 13px; color: var(--color-text-light); }
+.schedule-toggle { font-weight: 500; }
+.schedule-settings { margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 6px; }
+.timezone { display: block; margin-top: 4px; font-size: 12px; color: var(--color-text-light); }
+.schedule-actions { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.save-msg { font-size: 13px; }
+.save-msg.ok { color: var(--color-success); }
+.save-msg.error { color: var(--color-danger); }
 .run-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--color-border); }
 .run-item:last-child { border-bottom: none; }
 .run-detail { flex: 1; }
