@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>wxread curl_bash 获取工具</title>
+<style>:root{--primary:#4f8cff;--bg:#f5f7fa;--card:#fff;--border:#e8e8e8;--text:#333;--text-light:#999;--radius:8px}*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;padding:32px 16px}.container{max-width:640px;margin:0 auto}h1{font-size:22px;text-align:center;margin-bottom:8px}.subtitle{text-align:center;color:var(--text-light);margin-bottom:32px;font-size:14px}.card{background:var(--card);border-radius:var(--radius);padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.06)}.card h2{font-size:16px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}.step{margin-bottom:12px;padding-left:24px;position:relative}.step::before{content:attr(data-num);position:absolute;left:0;top:0;width:18px;height:18px;background:var(--primary);color:#fff;border-radius:50%;font-size:10px;display:flex;align-items:center;justify-content:center}.bookmark-link{display:inline-block;padding:10px 20px;background:var(--primary);color:#fff;text-decoration:none;border-radius:6px;font-weight:500;font-size:14px}.bookmark-link:hover{opacity:.9}.drag-hint{font-size:12px;color:var(--text-light);margin-top:6px}textarea{width:100%;min-height:100px;font-family:'Consolas','Monaco',monospace;font-size:12px;padding:12px;border:1px solid var(--border);border-radius:6px;resize:vertical}textarea:focus{outline:0;border-color:var(--primary)}.btn{display:inline-block;padding:8px 16px;border:0;border-radius:6px;cursor:pointer;font-size:14px}.btn-primary{background:var(--primary);color:#fff}.btn-default{background:#fff;color:var(--text);border:1px solid var(--border)}.actions{display:flex;gap:8px;margin-top:12px}.result{margin-top:10px;font-size:13px}.result.ok{color:#52c41a}.result.error{color:#ff4d4f}</style></head>
+<body><div class="container">
+<h1>wxread curl_bash 获取工具</h1><p class="subtitle">三种方式任选其一</p>
+
+<div class="card"><h2>方式一：书签小工具（推荐）</h2>
+<div class="step" data-num="1">打开 <a href="https://weread.qq.com/" target="_blank">微信读书网页版</a>，扫码登录</div>
+<div class="step" data-num="2">打开任意一本书，进入阅读页面</div>
+<div class="step" data-num="3">点击下方书签按钮，自动复制 curl_bash</div>
+<div style="text-align:center;margin:16px 0"><a class="bookmark-link" href="javascript:(function(){var c=document.cookie;if(!c){alert('请先在微信读书官网扫码登录');return;}var u=navigator.userAgent;var b='curl '+String.fromCharCode(39)+'https://weread.qq.com/web/book/read'+String.fromCharCode(39)+' -H '+String.fromCharCode(39)+'accept: application/json, text/plain, */*'+String.fromCharCode(39)+' -H '+String.fromCharCode(39)+'user-agent: '+u+String.fromCharCode(39)+' -b '+String.fromCharCode(39)+c+String.fromCharCode(39);navigator.clipboard.writeText(b).then(function(){alert('curl_bash 已复制到剪贴板');}).catch(function(){var t=document.createElement('textarea');t.value=b;t.style.position='fixed';t.style.left='-9999px';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('curl_bash 已复制到剪贴板');});})();">拖我到书签栏</a></div>
+<p class="drag-hint">将此按钮拖到浏览器书签栏。在微信读书页面点击即获取 curl_bash</p></div>
+
+<div class="card"><h2>方式二：F12 开发者工具</h2>
+<div class="step" data-num="1">在微信读书网页版登录并打开一本书</div>
+<div class="step" data-num="2">按 <strong>F12</strong>，切换到 <strong>Network</strong> 标签</div>
+<div class="step" data-num="3">过滤框输入 <code>read</code>，翻页</div>
+<div class="step" data-num="4">右键 <code>read</code> → Copy → Copy as cURL (bash)</div></div>
+
+<div class="card"><h2>方式三：直接粘贴</h2>
+<textarea id="bashInput" placeholder="curl 'https://weread.qq.com/web/book/read' -H 'accept: ...' -b 'wr_vid=...'"></textarea>
+<div class="actions"><button class="btn btn-primary" onclick="copyBash()">复制</button><button class="btn btn-default" onclick="validateBash()">验证格式</button></div>
+<div id="result" class="result"></div></div>
+
+<p style="text-align:center;color:var(--text-light);font-size:12px;margin-top:32px">复制后回到控制面板 → 配置 → 粘贴到 WXREAD_CURL_BASH</p>
+</div>
+<script>function copyBash(){var t=document.getElementById('bashInput').value;if(!t.trim()){alert('请先粘贴 curl_bash');return}navigator.clipboard.writeText(t).then(function(){show('已复制','ok')}).catch(function(){show('复制失败','error')})}
+function validateBash(){var t=document.getElementById('bashInput').value;if(!t.trim()){show('内容为空','error');return}if(!t.includes('weread.qq.com')){show('未检测到微信读书地址','error');return}if(t.includes('weread.qq.com/web/book/read')&&(t.includes('-b')||t.toLowerCase().includes('cookie'))){show('格式正确','ok')}else{show('不是 read 接口的 curl 命令','error')}}
+function show(m,c){var e=document.getElementById('result');e.textContent=m;e.className='result '+c}</script></body></html>
