@@ -23,6 +23,8 @@
   var statusEl = null;
   var textEl = null;
   var timer = null;
+  var copyBtn = null;
+  var guideBtn = null;
 
   function isReadUrl(u) {
     return typeof u === 'string' && u.indexOf('/web/book/read') !== -1;
@@ -94,6 +96,30 @@
   // ---- 构建 curl（与 src/utils/curlBuilder.ts 保持一致）----
   function shellQuote(v) { return "'" + String(v).replace(/'/g, "'\\''") + "'"; }
 
+  // 浏览器自动附加、但 JS 读不到的头（Client Hints / Fetch Metadata）——
+  // F12 Copy as cURL 会包含，这里按浏览器实际行为补齐使格式一致（v0.1.6）
+  function browserHeaders() {
+    var out = {};
+    var ua = navigator.userAgent || '';
+    var langs = (navigator.languages && navigator.languages.length) ? navigator.languages : ['zh-CN', 'zh'];
+    out['accept-language'] = langs.map(function (l, i) {
+      return i === 0 ? l : l + ';q=' + Math.max(0.1, 0.9 - (i - 1) * 0.1).toFixed(1);
+    }).join(',');
+    out['dnt'] = navigator.doNotTrack === '1' ? '1' : '0';
+    out['priority'] = 'u=1, i';
+    out['sec-fetch-dest'] = 'empty';
+    out['sec-fetch-mode'] = 'cors';
+    out['sec-fetch-site'] = 'same-origin';
+    var cm = ua.match(/Chrome\/(\d+)/);
+    var ud = navigator.userAgentData;
+    var platform = (ud && ud.platform) || (ua.indexOf('Windows') > -1 ? 'Windows' : ua.indexOf('Android') > -1 ? 'Android' : ua.indexOf('iPhone') > -1 || ua.indexOf('iPad') > -1 ? 'iOS' : ua.indexOf('Mac') > -1 ? 'macOS' : ua.indexOf('Linux') > -1 ? 'Linux' : '');
+    var mobile = (ud && ud.mobile != null) ? ud.mobile : /Mobile|Android/i.test(ua);
+    out['sec-ch-ua-mobile'] = mobile ? '?1' : '?0';
+    if (platform) out['sec-ch-ua-platform'] = '"' + platform + '"';
+    if (cm) out['sec-ch-ua'] = '"Not A(Brand";v="8", "Chromium";v="' + cm[1] + '", "Google Chrome";v="' + cm[1] + '"';
+    return out;
+  }
+
   function buildCurl(req) {
     var SKIP = { host: 1, 'content-length': 1 };
     var map = {}; var order = [];
@@ -128,6 +154,8 @@
     add('origin', 'https://weread.qq.com');
     if (location && location.href) add('referer', location.href);
     add('user-agent', navigator.userAgent);
+    var auto = browserHeaders();
+    Object.keys(auto).forEach(function (k) { add(k, auto[k]); });
 
     var lines = ['curl ' + shellQuote(req.url) + ' \\'];
     order.forEach(function (k, i) {
@@ -180,11 +208,16 @@
     textEl.style.cssText = 'width:100%;height:200px;box-sizing:border-box;font-family:Consolas,Monaco,monospace;font-size:11px;padding:8px;border:1px solid #ddd;border-radius:6px;resize:vertical;';
     textEl.readOnly = true;
     var btns = document.createElement('div');
-    btns.style.cssText = 'margin-top:8px;display:flex;gap:8px;align-items:center;';
-    var copyBtn = document.createElement('button');
+    btns.style.cssText = 'margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;';
+    copyBtn = document.createElement('button');
     copyBtn.textContent = '📋 复制 curl_bash';
     copyBtn.style.cssText = 'padding:6px 14px;background:#2b6ef2;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px;';
     copyBtn.addEventListener('click', function () { copyText(textEl.value); });
+    guideBtn = document.createElement('button');
+    guideBtn.textContent = '❓ F12 指引（复制步骤）';
+    guideBtn.style.cssText = 'padding:6px 14px;background:#fff;color:#e67e22;border:1px solid #e67e22;border-radius:6px;cursor:pointer;font-size:13px;';
+    guideBtn.style.display = 'none';
+    guideBtn.addEventListener('click', function () { copyText(F12_GUIDE); });
     var reBtn = document.createElement('button');
     reBtn.textContent = '🔄 重新监听';
     reBtn.style.cssText = 'padding:6px 14px;background:#fff;color:#333;border:1px solid #ccc;border-radius:6px;cursor:pointer;font-size:13px;';
@@ -193,10 +226,7 @@
       setStatus('正在监听… 请翻页触发阅读上报');
       startTimer();
     });
-    var hint = document.createElement('span');
-    hint.style.cssText = 'color:#999;font-size:12px;';
-    hint.textContent = '提示：若 cookie 缺 HttpOnly 项仍报错，请改用 F12 方式';
-    btns.appendChild(copyBtn); btns.appendChild(reBtn); btns.appendChild(hint);
+    btns.appendChild(copyBtn); btns.appendChild(guideBtn); btns.appendChild(reBtn);
     panel.appendChild(title); panel.appendChild(statusEl); panel.appendChild(textEl); panel.appendChild(btns);
     document.body.appendChild(panel);
   }
@@ -215,18 +245,27 @@
     return keys.filter(function (k) { return !have[k]; });
   }
 
+  // 微信读书将关键 cookie 设为 HttpOnly，浏览器禁止任何网页脚本读取（含本工具）。
+  // 这是安全硬限制，无法绕过——书签工具生成的 curl 必然缺少这些项，填入后
+  // wxread 的 main.py 刷新 wr_skey 会失败。唯一可靠方式：F12 复制完整请求。
+  var F12_GUIDE = '微信读书将 wr_vid / wr_skey / wr_rt 设为 HttpOnly，浏览器禁止网页脚本读取（安全硬限制，任何书签工具都无法绕过）。\n\n请用 F12 方式获取完整 curl（唯一可靠）：\n1. 微信读书阅读页按 F12，切到 Network 标签\n2. 过滤框输入 read，然后翻一页\n3. 右键 read 请求 → Copy → Copy as cURL (bash)\n4. 粘贴到控制面板配置参数页的 WXREAD_CURL_BASH 并保存';
+
   function showResult() {
     clearTimeout(timer);
     var bash = buildCurl(captured);
     textEl.value = bash;
     var missing = missingKeys(captured.headers.cookie || document.cookie);
     if (missing.length) {
-      // HttpOnly cookie（wr_vid/wr_skey 等）浏览器不向 JS 暴露，提示改用 F12 方式
-      setStatus('⚠️ 已捕获，但缺少 ' + missing.join('、') + '（HttpOnly，JS 无法读取）：若接口报未登录/401，请用 F12 → Copy as cURL (bash)', '#e67e22');
+      setStatus('⚠️ 缺少 ' + missing.join('、') + '（HttpOnly 安全限制，书签无法读取）——此 curl 不能用于刷时长。请点击下方「F12 指引」复制步骤', '#e67e22');
+      // 不自动复制无效的 curl，改而提示用户使用 F12
+      guideBtn.style.display = 'inline-block';
+      copyBtn.style.display = 'none';
     } else {
       setStatus('✅ 已捕获阅读请求！请复制 curl_bash 并粘贴到控制面板', '#27ae60');
+      guideBtn.style.display = 'none';
+      copyBtn.style.display = 'inline-block';
+      setTimeout(function () { copyText(bash); }, 300);
     }
-    setTimeout(function () { copyText(bash); }, 300);
   }
 
   window.__wxreadCurlCap = {

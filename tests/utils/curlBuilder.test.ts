@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCurl, resolveUrl } from '@/utils/curlBuilder';
+import { buildCurl, resolveUrl, browserHeaders } from '@/utils/curlBuilder';
 
 // 书签小工具核心：把捕获到的微信读书 read 请求还原为完整 curl 命令。
 // 关键要求：必须包含 x-wrpa-0 签名头、cookie、--data-raw 请求体——
@@ -95,6 +95,36 @@ describe('curlBuilder（read 请求 → curl 命令）', () => {
 
     it('无前导斜杠的相对路径自动补斜杠', () => {
       expect(resolveUrl('web/book/read', 'https://weread.qq.com')).toBe('https://weread.qq.com/web/book/read');
+    });
+  });
+
+  describe('browserHeaders（补齐浏览器自动附加头，与 F12 Copy as cURL 一致）', () => {
+    it('从 UA 生成 sec-ch-ua 系列与 fetch 元数据头', () => {
+      const h = browserHeaders({
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
+        platform: 'Windows',
+        mobile: false,
+        languages: ['zh-CN', 'zh'],
+      });
+      expect(h['accept-language']).toBe('zh-CN,zh;q=0.9');
+      expect(h['sec-fetch-dest']).toBe('empty');
+      expect(h['sec-fetch-mode']).toBe('cors');
+      expect(h['sec-fetch-site']).toBe('same-origin');
+      expect(h['sec-ch-ua-mobile']).toBe('?0');
+      expect(h['sec-ch-ua-platform']).toBe('"Windows"');
+      expect(h['sec-ch-ua']).toContain('"Google Chrome";v="132"');
+      expect(h['sec-ch-ua']).toContain('"Chromium";v="132"');
+      expect(h['priority']).toBe('u=1, i');
+    });
+
+    it('移动端 UA 生成 ?1 与 sec-ch-ua 平台', () => {
+      const h = browserHeaders({
+        userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
+        platform: 'Android',
+        mobile: true,
+      });
+      expect(h['sec-ch-ua-mobile']).toBe('?1');
+      expect(h['sec-ch-ua-platform']).toBe('"Android"');
     });
   });
 });

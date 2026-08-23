@@ -1,12 +1,12 @@
 <template>
   <div class="card"><div class="card-title">📋 一键获取 curl_bash</div>
-    <p class="desc">获取微信读书登录凭证（curl_bash），约 30 秒完成：</p>
+    <p class="desc">获取微信读书登录凭证（curl_bash），<b>F12 方式最可靠</b>（含完整登录凭证）：</p>
     <ol class="steps">
-      <li>打开 <a href="https://weread.qq.com/" target="_blank">微信读书网页版 ↗</a> 并扫码登录</li>
-      <li>进入任意一本书的阅读页</li>
-      <li>点击书签按钮（拖到书签栏使用），在阅读页<b>翻一页</b>，工具自动捕获并复制 curl_bash</li>
+      <li>打开 <a href="https://weread.qq.com/" target="_blank">微信读书网页版 ↗</a> 并扫码登录，进入任意一本书的阅读页</li>
+      <li>按 <b>F12</b> → Network 标签 → 过滤框输入 <code>read</code> → 翻一页</li>
+      <li>右键 <code>read</code> 请求 → <b>Copy → Copy as cURL (bash)</b>，粘贴到「微信读书接口」输入框并保存</li>
     </ol>
-    <a class="btn btn-primary btn-lg btn-block" :href="helperUrl" target="_blank">📋 一键获取 curl_bash ↗</a>
+    <a class="btn btn-primary btn-lg btn-block" :href="helperUrl" target="_blank">📋 打开获取工具（含书签/F12 图文） ↗</a>
   </div>
 </template>
 <script setup lang="ts">

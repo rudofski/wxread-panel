@@ -1,6 +1,6 @@
 <template>
   <nav class="sidebar">
-    <div class="sidebar-logo">wxread</div>
+    <div class="sidebar-logo">wxread控制面板</div>
     <div class="sidebar-nav">
       <router-link v-for="item in navItems" :key="item.path" :to="item.path" class="nav-item" active-class="active">
         <span class="nav-icon">{{ item.icon }}</span>
