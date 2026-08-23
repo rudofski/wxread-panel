@@ -5,16 +5,12 @@
       <div class="card-title">运行日历</div>
       <div class="contrib-scroll">
         <div class="contrib">
-          <div class="contrib-body">
-            <div class="weekday-col">
-              <span class="weekday-spacer"></span>
-              <span class="weekday">一</span><span class="weekday"></span><span class="weekday">三</span><span class="weekday"></span><span class="weekday">五</span><span class="weekday"></span><span class="weekday"></span>
-            </div>
-            <div v-for="(group, gi) in monthGroups" :key="gi" class="month-group">
-              <div class="group-label">{{ group.month >= 0 ? MONTHS[group.month] : '' }}</div>
+          <div class="contrib-body" :style="{ '--total-cols': totalCols }">
+            <div v-for="(group, gi) in monthGroups" :key="gi" class="month-group" :style="{ '--cols': group.weeks.length }">
+              <div class="group-label">{{ MONTHS[group.month] }}</div>
               <div class="group-weeks">
                 <div v-for="(week, wi) in group.weeks" :key="wi" class="week-col">
-                  <div v-for="cell in week" :key="cell.date" class="contrib-cell" :class="'cell-' + cell.s" :title="cell.title" @click="showDetail(cell.date)"></div>
+                  <div v-for="(cell, ci) in week" :key="ci" class="contrib-cell" :class="'cell-' + cell.s" :title="cell.title" @click="cell.date ? showDetail(cell.date) : null"></div>
                 </div>
               </div>
             </div>
@@ -50,9 +46,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { listWorkflowRuns, parseRunError, getRunLogs, type RunInfo } from '@/api/github';
-
-interface Cell { date: string; s: string; title: string; }
-interface DayData { s: 'success' | 'failure'; note?: string; }
+import { buildMonthBlocks, type CalendarMonthBlock, type DayStatus } from '@/utils/calendarGrid';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
@@ -62,70 +56,30 @@ const errorCache = ref<Map<number, string>>(new Map());
 
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
-// 横向 GitHub 贡献图：列 = 周（52 周），行 = 周一 ~ 周日，按月分组
-const weeks = computed(() => {
-  const year = new Date().getFullYear();
-  const start = new Date(year, 0, 1);
-  // 对齐到该年第一个周一作为起点
-  const mondayIndex = (start.getDay() + 6) % 7;
-  const gridStart = new Date(start);
-  gridStart.setDate(start.getDate() - mondayIndex);
-
-  const dayMap = new Map<string, DayData>();
-  // runs 按时间倒序（最新在前），每日只取最新一条；只要最新运行结果不是失败即为绿色
+// 每日最新一条运行状态；只要最新运行结果不是失败即为绿色
+const dayMap = computed(() => {
+  const map = new Map<string, DayStatus>();
   for (const run of runs.value) {
     const date = (run.run_started_at || run.created_at).slice(0, 10);
-    if (dayMap.has(date)) continue;
+    if (map.has(date)) continue;
     if (run.conclusion === 'failure') {
-      dayMap.set(date, { s: 'failure', note: errorCache.value.get(run.id) || '运行失败' });
+      map.set(date, { s: 'failure', note: errorCache.value.get(run.id) || '运行失败' });
     } else if (run.status === 'in_progress') {
-      dayMap.set(date, { s: 'success', note: '运行中' });
+      map.set(date, { s: 'success', note: '运行中' });
     } else {
       // success / cancelled / skipped / timed_out 等一律视为非失败 → 绿色
-      dayMap.set(date, { s: 'success' });
+      map.set(date, { s: 'success' });
     }
   }
-
-  const now = new Date();
-  const endOfYear = new Date(year, 11, 31);
-  const result: Cell[][] = [];
-  const cursor = new Date(gridStart);
-  // 覆盖整年（最后一周可延伸至下一年初）
-  while (cursor <= endOfYear || result.length < 52) {
-    const week: Cell[] = [];
-    for (let i = 0; i < 7; i++) {
-      const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
-      const inYear = cursor.getFullYear() === year;
-      const future = inYear && cursor > now;
-      const data = dayMap.get(dateStr);
-      let s = 'empty';
-      if (!inYear) s = 'out';
-      else if (future) s = 'future';
-      else if (data) s = data.s;
-      let title = dateStr;
-      if (data) title += data.s === 'failure' ? ` 失败${data.note ? ': ' + data.note : ''}` : data.note ? ` ${data.note}` : ' 成功';
-      else title += ' 未运行';
-      week.push({ date: dateStr, s, title });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    result.push(week);
-  }
-  return result;
+  return map;
 });
 
-// 按月份分组：每周取该周首个属于本年的日期确定归属月份，月份变化时开启新组
-const monthGroups = computed(() => {
-  const year = new Date().getFullYear();
-  const groups: { month: number; weeks: Cell[][] }[] = [];
-  for (const week of weeks.value) {
-    const first = week.find(c => c.date.startsWith(String(year)));
-    const m = first ? Number(first.date.slice(5, 7)) - 1 : -1;
-    const last = groups[groups.length - 1];
-    if (!last || last.month !== m) groups.push({ month: m, weeks: [week] });
-    else last.weeks.push(week);
-  }
-  return groups;
-});
+// 12 个月独立网格：每月 1 号在第一个格子，顺序填充，绝不跨月
+const monthGroups = computed<CalendarMonthBlock[]>(() =>
+  buildMonthBlocks(new Date().getFullYear(), dayMap.value, new Date()),
+);
+
+const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.weeks.length, 0));
 
 const stats = computed(() => {
   let success = 0, failure = 0;
@@ -185,24 +139,21 @@ onMounted(loadData);
 <style scoped>
 .calendar-page { max-width: 100%; }
 .contrib-scroll { overflow-x: auto; }
-.contrib { width: 100%; min-width: 760px; }
-.contrib-body { display: flex; gap: 3px; }
-.weekday-col { display: flex; flex-direction: column; gap: 3px; width: 18px; margin-right: 6px; flex-shrink: 0; }
-.weekday-spacer { height: 20px; flex-shrink: 0; }
-.weekday { flex: 1; font-size: 10px; color: var(--color-text-light); display: flex; align-items: center; justify-content: center; }
-.month-group { display: flex; flex-direction: column; }
-.month-group + .month-group { margin-left: 10px; }
-.group-label { height: 20px; line-height: 20px; font-size: 11px; font-weight: 600; color: var(--color-text-light); white-space: nowrap; }
-.group-weeks { display: flex; gap: 3px; flex: 1; }
-.week-col { display: flex; flex-direction: column; gap: 3px; flex: 1; }
-.contrib-cell { width: 100%; aspect-ratio: 1 / 1; min-width: 14px; border-radius: 3px; cursor: pointer; }
-.cell-success { background: #216e39; }
-.cell-failure { background: #cf222e; }
-.cell-empty { background: #ebedf0; }
+.contrib { width: 100%; min-width: 720px; }
+/* 外层：按总列数均分容器宽度，所有格子统一大小、铺满显示区域 */
+.contrib-body { display: grid; grid-template-columns: repeat(var(--total-cols), minmax(0, 1fr)); gap: 3px; }
+.month-group { grid-column: span var(--cols); display: flex; flex-direction: column; }
+.month-group + .month-group { border-left: 2px solid rgba(0, 0, 0, 0.1); padding-left: 4px; }
+.group-label { height: 22px; line-height: 22px; font-size: 12px; font-weight: 600; color: var(--color-text-light); white-space: nowrap; }
+.group-weeks { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; }
+.week-col { display: flex; flex-direction: column; gap: 3px; }
+.contrib-cell { aspect-ratio: 1 / 1; border-radius: 3px; }
+.cell-success { background: #216e39; cursor: pointer; }
+.cell-failure { background: #cf222e; cursor: pointer; }
+.cell-empty { background: #ebedf0; cursor: pointer; }
 .cell-future { background: transparent; border: 1px solid #ebedf0; }
-.cell-out { background: transparent; }
+.cell-blank { background: transparent; }
 .legend { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--color-text-light); }
-.legend + .legend { margin-left: 12px; }
 .legend-cell { width: 14px; height: 14px; border-radius: 3px; margin-left: 8px; }
 .legend-cell:first-child { margin-left: 0; }
 .text-ok { color: var(--color-success); }
