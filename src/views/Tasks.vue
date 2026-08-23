@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { dispatchWorkflow, listWorkflowRuns, getOctokit, type RunInfo } from '@/api/github';
 import { loadSchedule, saveSchedule, type Schedule } from '@/utils/schedule';
@@ -74,7 +74,13 @@ async function deleteRun(runId: number) {
   catch (e: any) { alert('删除失败：' + e.message); }
 }
 function formatDate(d: string): string { return new Date(d).toLocaleString('zh-CN'); }
-onMounted(() => { loadRuns(); schedule.value = loadSchedule(); });
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+onMounted(() => {
+  loadRuns();
+  schedule.value = loadSchedule();
+  pollTimer = setInterval(loadRuns, 15000);
+});
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 </script>
 
 <style scoped>
