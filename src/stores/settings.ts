@@ -1,7 +1,22 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { detectRepo, parseRepoUrl, wxreadAdapter, listWorkflows, secretExists, type RepoInfo, type WorkflowInfo } from '@/api/github';
 import type { PanelSettings } from '@/api/github';
+
+// 记忆存储：配置持久化到 localStorage，重开面板自动恢复（wxread 回读依赖此恢复仓库地址）
+const PERSIST_KEY = 'wxread_panel_settings';
+
+interface PersistedSettings {
+  repoUrl?: string;
+  readMinutes?: number;
+  pushMethod?: string;
+  curlBash?: string;
+  wxpusherToken?: string;
+  pushplusToken?: string;
+  tgBotToken?: string;
+  tgChatId?: string;
+  serverchanToken?: string;
+}
 
 export const useSettingsStore = defineStore('settings', () => {
   const repoUrl = ref('');
@@ -21,6 +36,36 @@ export const useSettingsStore = defineStore('settings', () => {
   const tgBotToken = ref('');
   const tgChatId = ref('');
   const serverchanToken = ref('');
+
+  // 从 localStorage 恢复持久化配置（记忆存储；损坏/缺失时回退默认值）
+  try {
+    const saved = JSON.parse(localStorage.getItem(PERSIST_KEY) || '{}') as PersistedSettings;
+    if (saved.repoUrl) repoUrl.value = saved.repoUrl;
+    if (typeof saved.readMinutes === 'number') readMinutes.value = saved.readMinutes;
+    if (saved.pushMethod) pushMethod.value = saved.pushMethod;
+    if (saved.curlBash) curlBash.value = saved.curlBash;
+    if (saved.wxpusherToken) wxpusherToken.value = saved.wxpusherToken;
+    if (saved.pushplusToken) pushplusToken.value = saved.pushplusToken;
+    if (saved.tgBotToken) tgBotToken.value = saved.tgBotToken;
+    if (saved.tgChatId) tgChatId.value = saved.tgChatId;
+    if (saved.serverchanToken) serverchanToken.value = saved.serverchanToken;
+  } catch { /* 损坏数据回退默认值 */ }
+
+  // 自动持久化：任一持久化字段变化即写入 localStorage
+  watch(
+    [repoUrl, readMinutes, pushMethod, curlBash, wxpusherToken, pushplusToken, tgBotToken, tgChatId, serverchanToken],
+    persist,
+    { deep: true }
+  );
+
+  function persist() {
+    const data: PersistedSettings = {
+      repoUrl: repoUrl.value, readMinutes: readMinutes.value, pushMethod: pushMethod.value,
+      curlBash: curlBash.value, wxpusherToken: wxpusherToken.value, pushplusToken: pushplusToken.value,
+      tgBotToken: tgBotToken.value, tgChatId: tgChatId.value, serverchanToken: serverchanToken.value,
+    };
+    try { localStorage.setItem(PERSIST_KEY, JSON.stringify(data)); } catch { /* 存储满等异常忽略 */ }
+  }
 
   const pushMethods = ['', 'pushplus', 'wxpusher', 'telegram', 'serverchan'] as const;
   const quickReadOptions = [
