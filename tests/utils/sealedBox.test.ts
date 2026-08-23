@@ -1,38 +1,56 @@
 import { describe, it, expect } from 'vitest';
-import nacl from 'tweetnacl';
-import { decodeBase64, encodeBase64, encodeUTF8, decodeUTF8 } from 'tweetnacl-util';
-import { sealedBoxEncrypt } from '@/utils/sealedBox';
+import sodium from 'libsodium-wrappers';
+import { sealedBoxEncryptToBase64 } from '@/utils/sealedBox';
 
-describe('sealedBoxEncrypt（GitHub Actions Secrets 加密）', () => {
-  it('密封盒可用接收方私钥解封（roundtrip）', () => {
-    const recipient = nacl.box.keyPair();
+// 关键：GitHub 服务器用 libsodium crypto_box_seal_open 解封，
+// 测试必须验证与 libsodium 的互操作性（而非自解封）。
+describe('sealedBoxEncryptToBase64（GitHub Actions Secrets 加密）', () => {
+  it('libsodium（GitHub 服务器等效）能解封我们的密封结果', async () => {
+    await sodium.ready;
+    const recipient = sodium.crypto_box_keypair();
     const message = 'AT_hello-secret-value';
 
-    const sealed = sealedBoxEncrypt(decodeUTF8(message), encodeBase64(recipient.publicKey));
+    const encrypted = await sealedBoxEncryptToBase64(
+      message,
+      sodium.to_base64(recipient.publicKey, sodium.base64_variants.ORIGINAL),
+    );
 
-    // 格式：ephemeral 公钥(32) + nonce(24) + 密文
-    expect(sealed.length).toBeGreaterThan(32 + 24);
-    const ephemeralPk = sealed.subarray(0, 32);
-    const nonce = sealed.subarray(32, 56);
-    const cipher = sealed.subarray(56);
-
-    const opened = nacl.box.open(cipher, nonce, ephemeralPk, recipient.secretKey);
-    expect(opened).not.toBeNull();
-    expect(encodeUTF8(opened!)).toBe(message);
+    const sealed = sodium.from_base64(encrypted, sodium.base64_variants.ORIGINAL);
+    const opened = sodium.crypto_box_seal_open(sealed, recipient.publicKey, recipient.privateKey);
+    expect(sodium.to_string(opened)).toBe(message);
   });
 
-  it('不同消息产生不同密文', () => {
-    const recipient = nacl.box.keyPair();
-    const pk = encodeBase64(recipient.publicKey);
-    const a = sealedBoxEncrypt(decodeUTF8('secret-1'), pk);
-    const b = sealedBoxEncrypt(decodeUTF8('secret-2'), pk);
-    expect(encodeBase64(a)).not.toBe(encodeBase64(b));
+  it('非 ASCII 内容（curl_bash 含引号/中文）可正确往返', async () => {
+    await sodium.ready;
+    const recipient = sodium.crypto_box_keypair();
+    const message = "curl 'https://weread.qq.com/web/book/read' -H 'user-agent: 测试' -b 'wr_vid=123'";
+
+    const encrypted = await sealedBoxEncryptToBase64(
+      message,
+      sodium.to_base64(recipient.publicKey, sodium.base64_variants.ORIGINAL),
+    );
+
+    const sealed = sodium.from_base64(encrypted, sodium.base64_variants.ORIGINAL);
+    const opened = sodium.crypto_box_seal_open(sealed, recipient.publicKey, recipient.privateKey);
+    expect(sodium.to_string(opened)).toBe(message);
   });
 
-  it('返回 base64 字符串且不含换行', () => {
-    const recipient = nacl.box.keyPair();
-    const sealed = sealedBoxEncrypt(decodeUTF8('x'), encodeBase64(recipient.publicKey));
-    const b64 = encodeBase64(sealed);
-    expect(/^[A-Za-z0-9+/=]+$/.test(b64)).toBe(true);
+  it('不同消息产生不同密文', async () => {
+    await sodium.ready;
+    const recipient = sodium.crypto_box_keypair();
+    const pk = sodium.to_base64(recipient.publicKey, sodium.base64_variants.ORIGINAL);
+    const a = await sealedBoxEncryptToBase64('secret-1', pk);
+    const b = await sealedBoxEncryptToBase64('secret-2', pk);
+    expect(a).not.toBe(b);
+  });
+
+  it('输出为标准 base64（无换行）', async () => {
+    await sodium.ready;
+    const recipient = sodium.crypto_box_keypair();
+    const encrypted = await sealedBoxEncryptToBase64(
+      'x',
+      sodium.to_base64(recipient.publicKey, sodium.base64_variants.ORIGINAL),
+    );
+    expect(/^[A-Za-z0-9+/=]+$/.test(encrypted)).toBe(true);
   });
 });
