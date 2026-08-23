@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { isLockEnabled, verifyPassword, isUnlocked, setUnlocked } from '@/utils/panelLock';
+import { isLockEnabled, verifyPassword, isUnlocked, setUnlocked, sha256Hex } from '@/utils/panelLock';
 
 describe('panelLock（可选密码门）', () => {
   afterEach(() => {
@@ -9,22 +9,24 @@ describe('panelLock（可选密码门）', () => {
     localStorage.clear();
   });
 
-  it('未配置 VITE_PANEL_PASSWORD 时不启用', () => {
+  it('未配置 VITE_PANEL_PASSWORD_HASH 时不启用', () => {
     expect(isLockEnabled()).toBe(false);
   });
 
-  it('配置 VITE_PANEL_PASSWORD 后启用', () => {
-    vi.stubEnv('VITE_PANEL_PASSWORD', 'my-secret');
+  it('配置 VITE_PANEL_PASSWORD_HASH 后启用', () => {
+    vi.stubEnv('VITE_PANEL_PASSWORD_HASH', 'a'.repeat(64));
     expect(isLockEnabled()).toBe(true);
   });
 
-  it('正确密码验证通过（哈希比较，JS 不含明文）', async () => {
-    vi.stubEnv('VITE_PANEL_PASSWORD', 'my-secret');
+  it('正确密码验证通过（输入哈希 vs 存储哈希）', async () => {
+    const hash = await sha256Hex('my-secret');
+    vi.stubEnv('VITE_PANEL_PASSWORD_HASH', hash);
     expect(await verifyPassword('my-secret')).toBe(true);
   });
 
   it('错误密码验证失败', async () => {
-    vi.stubEnv('VITE_PANEL_PASSWORD', 'my-secret');
+    const hash = await sha256Hex('my-secret');
+    vi.stubEnv('VITE_PANEL_PASSWORD_HASH', hash);
     expect(await verifyPassword('wrong')).toBe(false);
   });
 

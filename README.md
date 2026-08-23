@@ -20,9 +20,20 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 
 ## 访问密码（可选）
 
-构建时配置 `VITE_PANEL_PASSWORD`（如 `echo VITE_PANEL_PASSWORD=xxx >> .env.local`，或部署时在构建环境注入）后，打开面板需先输入访问密码，24 小时内免重复输入。
+设置后打开面板需先输入访问密码，24 小时内免重复输入（防共用设备场景）。
 
-> 说明：前端密码校验可被绕过，仅防共用设备场景；真正的安全防线是 PAT token。
+**线上启用（推荐）**：
+
+1. 本地生成密码的 SHA-256 哈希（把「你的密码」换成实际密码）：
+   ```bash
+   node -e "const c=require('crypto');process.stdout.write(c.createHash('sha256').update('你的密码').digest('hex'))"
+   ```
+2. 仓库 `Settings → Secrets and variables → Actions → Secrets` 添加 `PANEL_PASSWORD_HASH` = 上一步输出的 64 位 hex
+3. `git push origin master` 重新部署即启用（deploy.yml 构建时自动注入）
+
+**本地开发**：在 `.env.local` 设置 `VITE_PANEL_PASSWORD_HASH=<64 位 hex>`。
+
+> 安全说明：构建产物中仅含密码哈希、不含明文（Vite 会把 `VITE_` 变量内联进 JS，故注入的是哈希）；前端密码校验可被绕过，仅防共用设备，真正的防线仍是 PAT token。
 
 ## 获取 WXREAD_CURL_BASH（约 30 秒）
 

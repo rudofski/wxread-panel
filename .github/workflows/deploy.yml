@@ -26,6 +26,10 @@ jobs:
 
       - name: Typecheck and build
         run: npm run build
+        env:
+          # 可选密码门：在仓库 Actions Secrets 配置 PANEL_PASSWORD_HASH
+          # （=密码的 SHA-256 hex，生成命令见 README）后自动启用；未配置则不启用
+          VITE_PANEL_PASSWORD_HASH: ${{ secrets.PANEL_PASSWORD_HASH }}
 
       - name: Run unit tests
         run: npm run test:unit
