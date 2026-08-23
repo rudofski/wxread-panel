@@ -18,6 +18,13 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 3. Settings → Pages 启用，Source 选 `gh-pages` 分支 / (root)
 4. 访问 `https://<你的用户名>.github.io/wxread-panel/`
 
+## 书城搜索（线上部署）
+
+`weread.qq.com` 搜索接口未开放 CORS，GitHub Pages 部署后浏览器会拦截书城搜索直连请求。
+
+- **本地开发**：不配置任何变量，直连可用
+- **线上部署**：在仓库 `Settings → Actions → Variables` 添加 `VITE_WEREAD_PROXY`（自建 Cloudflare Worker 地址，代码与部署说明见 `worker/`），重新部署后生效
+
 ## 登录方式
 
 本项目为纯前端（GitHub Pages），无法安全完成 OAuth code → token 交换，**仅支持 Personal Access Token 登录**：
@@ -38,7 +45,7 @@ npm install
 npm run dev                  # http://localhost:3000
 ```
 
-无需任何环境变量（纯 PAT 登录，不依赖 OAuth Client ID）。
+无需任何环境变量（纯 PAT 登录，不依赖 OAuth Client ID；书城搜索本地直连）。
 
 ## 测试
 

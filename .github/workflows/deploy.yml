@@ -26,6 +26,10 @@ jobs:
 
       - name: Typecheck and build
         run: npm run build
+        env:
+          # 书城搜索 CORS 代理（Cloudflare Worker，见 worker/README.md）；
+          # 在仓库 Actions Variables 配置 VITE_WEREAD_PROXY 后线上搜索生效
+          VITE_WEREAD_PROXY: ${{ vars.VITE_WEREAD_PROXY }}
 
       - name: Run unit tests
         run: npm run test:unit

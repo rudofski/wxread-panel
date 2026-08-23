@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { isValidBookId, serializeBookLibrary, parseBookLibrary } from '@/api/weread';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { isValidBookId, serializeBookLibrary, parseBookLibrary, buildSearchUrl } from '@/api/weread';
 
 describe('weread API utils', () => {
   describe('isValidBookId', () => {
@@ -28,6 +28,24 @@ describe('weread API utils', () => {
       const result = serializeBookLibrary([{ bookId: 'abc', title: 'OK', author: '', cover: '' }, { bookId: 'inv@lid', title: 'Bad', author: '', cover: '' }]);
       const p = JSON.parse(result);
       expect(p).toHaveLength(1);
+    });
+  });
+
+  describe('buildSearchUrl（CORS 代理）', () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('未配置代理时直连 weread 搜索接口', () => {
+      const url = buildSearchUrl('三体');
+      expect(url).toBe('https://weread.qq.com/web/search/global?keyword=' + encodeURIComponent('三体'));
+    });
+
+    it('配置代理后走代理路径并编码关键词', () => {
+      vi.stubEnv('VITE_WEREAD_PROXY', 'https://weread-proxy.example.workers.dev/');
+      const url = buildSearchUrl('三体 刘慈欣');
+      expect(url.startsWith('https://weread-proxy.example.workers.dev/web/search/global?keyword=')).toBe(true);
+      expect(url).toContain(encodeURIComponent('三体 刘慈欣'));
     });
   });
 
