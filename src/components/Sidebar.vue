@@ -8,7 +8,7 @@
       </router-link>
     </div>
     <div class="sidebar-footer">
-      <div class="version">v0.1.0</div>
+      <div class="version">v{{ version }}</div>
       <button class="logout-btn" @click="logout">退出</button>
     </div>
   </nav>
@@ -17,7 +17,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+// 版本号单一事实来源：package.json（避免界面版本与项目版本再次漂移）
+import pkg from '../../package.json';
 
+const version = pkg.version;
 const router = useRouter();
 const auth = useAuthStore();
 
