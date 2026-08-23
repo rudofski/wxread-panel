@@ -24,9 +24,9 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 
 **线上启用（推荐）**：
 
-1. 本地生成密码的 SHA-256 哈希（把「你的密码」换成实际密码）：
+1. 本地生成密码的 SHA-256 哈希（密码输入时不显示、不落盘）：
    ```bash
-   node -e "const c=require('crypto');process.stdout.write(c.createHash('sha256').update('你的密码').digest('hex'))"
+   node scripts/password-hash.mjs
    ```
 2. 仓库 `Settings → Secrets and variables → Actions → Secrets` 添加 `PANEL_PASSWORD_HASH` = 上一步输出的 64 位 hex
 3. `git push origin master` 重新部署即启用（deploy.yml 构建时自动注入）
