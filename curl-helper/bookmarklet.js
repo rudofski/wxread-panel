@@ -1,45 +1,216 @@
 /**
  * wxread curl_bash 书签小工具源码
  *
- * 使用方式：
- *   1. 将下方压缩版保存为浏览器书签（书签 URL）
- *   2. 在微信读书网页版（weread.qq.com）登录并打开任意一本书
- *   3. 点击书签 → 自动提取 cookies → 生成 curl_bash → 复制到剪贴板
- *   4. 粘贴到 wxread 控制面板 → 配置 → 登录方式 → WXREAD_CURL_BASH
+ * 原理：在微信读书阅读页注入 fetch/XHR 拦截器，捕获真实的阅读上报请求
+ * （/web/book/read），从而拿到浏览器实际发送的请求头（含 x-wrpa-0 签名头）
+ * 与请求体（阅读进度 JSON）——旧版本只抓 document.cookie，缺失 x-wrpa-0、
+ * --data-raw 请求体与 content-type，导致提取的 curl 无法正常上报。
  *
- * 压缩版（index.html 中使用的内嵌版本）：
- * javascript:(function(){var c=document.cookie;if(!c){alert('请先在微信读书官网扫码登录');return;}var u=navigator.userAgent;var b='curl '+String.fromCharCode(39)+'https://weread.qq.com/web/book/read'+String.fromCharCode(39)+' -H '+String.fromCharCode(39)+'accept: application/json, text/plain, */*'+String.fromCharCode(39)+' -H '+String.fromCharCode(39)+'user-agent: '+u+String.fromCharCode(39)+' -b '+String.fromCharCode(39)+c+String.fromCharCode(39);navigator.clipboard.writeText(b).then(function(){alert('curl_bash 已复制到剪贴板');}).catch(function(){var t=document.createElement('textarea');t.value=b;t.style.position='fixed';t.style.left='-9999px';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);alert('curl_bash 已复制到剪贴板');});})();
+ * 使用方式：
+ *   1. 将 index.html 中的压缩版保存为浏览器书签
+ *   2. 在微信读书网页版（weread.qq.com）登录并打开任意一本书的阅读页
+ *   3. 点击书签 → 在阅读页翻一页（触发阅读上报）→ 自动捕获并复制 curl_bash
+ *   4. 粘贴到 wxread 控制面板 → 配置参数 → 微信读书接口
+ *
+ * 注意：浏览器出于安全限制不向 JS 暴露 HttpOnly cookie（如 wr_skey）。
+ * 若生成的 curl 仍无法上报，请用 F12 → Network → Copy as cURL (bash) 方式。
  */
-
 (function () {
-  var cookies = document.cookie;
-  if (!cookies) {
-    alert('❌ 未检测到登录信息，请先在微信读书官网扫码登录');
-    return;
-  }
-  var ua = navigator.userAgent;
-  var bash =
-    "curl 'https://weread.qq.com/web/book/read' " +
-    "-H 'accept: application/json, text/plain, */*' " +
-    "-H 'user-agent: " + ua + "' " +
-    "-b '" + cookies + "'";
+  if (window.__wxreadCurlCap) { window.__wxreadCurlCap.show(); return; }
 
-  navigator.clipboard
-    .writeText(bash)
-    .then(function () {
-      alert('✅ curl_bash 已复制到剪贴板！粘贴到控制面板即可。');
-    })
-    .catch(function () {
-      // 剪贴板 API 不可用时的降级方案
-      var ta = document.createElement('textarea');
-      ta.value = bash;
-      ta.style.position = 'fixed';
-      ta.style.left = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      ta.setSelectionRange(0, 99999);
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      alert('✅ curl_bash 已复制到剪贴板！粘贴到控制面板即可。');
+  var captured = null;
+  var panel = null;
+  var statusEl = null;
+  var textEl = null;
+  var timer = null;
+
+  function isReadUrl(u) {
+    return typeof u === 'string' && u.indexOf('/web/book/read') !== -1;
+  }
+
+  function pickHeaders(h) {
+    var out = {};
+    if (!h) return out;
+    if (typeof h.forEach === 'function') { h.forEach(function (v, k) { out[k] = v; }); }
+    else if (typeof h === 'object') { Object.keys(h).forEach(function (k) { out[k] = h[k]; }); }
+    return out;
+  }
+
+  function bodyToString(b) {
+    if (b == null) return '';
+    if (typeof b === 'string') return b;
+    if (typeof Blob !== 'undefined' && b instanceof Blob) return '';
+    try { return String(b); } catch (e) { return ''; }
+  }
+
+  function capture(url, headers, body, method) {
+    if (!isReadUrl(url)) return;
+    var h = pickHeaders(headers);
+    var b = bodyToString(body);
+    if (method === 'GET') b = '';
+    captured = { url: url, headers: h, body: b };
+    showResult();
+  }
+
+  // ---- hook fetch ----
+  var origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function (input, init) {
+      var url = typeof input === 'string' ? input : (input && (input.url || '')) || '';
+      var h = (init && init.headers) || {};
+      var b = (init && init.body);
+      var m = (init && init.method) || 'GET';
+      try { capture(url, h, b, m); } catch (e) {}
+      return origFetch.apply(this, arguments);
+    };
+  }
+
+  // ---- hook XHR ----
+  var origOpen = XMLHttpRequest.prototype.open;
+  var origSend = XMLHttpRequest.prototype.send;
+  var origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    this._wcM = method; this._wcU = url; this._wcH = {};
+    return origOpen.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.setRequestHeader = function (k, v) {
+    if (this._wcH) this._wcH[k] = v;
+    return origSetHeader.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    try { if (this._wcH) capture(this._wcU, this._wcH, body, this._wcM); } catch (e) {}
+    return origSend.apply(this, arguments);
+  };
+
+  // ---- 构建 curl（与 src/utils/curlBuilder.ts 保持一致）----
+  function shellQuote(v) { return "'" + String(v).replace(/'/g, "'\\''") + "'"; }
+
+  function buildCurl(req) {
+    var SKIP = { host: 1, 'content-length': 1 };
+    var map = {}; var order = [];
+    function add(name, value) {
+      var key = String(name).trim().toLowerCase();
+      if (!key || SKIP[key] || value == null) return;
+      if (!(key in map)) order.push(key);
+      map[key] = { n: key, v: String(value) };
+    }
+    var h = req.headers || {};
+    Object.keys(h).forEach(function (k) { add(k, h[k]); });
+
+    // cookie：优先捕获请求中的，并把 document.cookie 里缺失的项补进去
+    var cookie = map.cookie ? map.cookie.v : '';
+    var dc = document.cookie || '';
+    if (dc) {
+      if (cookie) {
+        var have = {};
+        cookie.split(';').forEach(function (p) { var i = p.indexOf('='); if (i > 0) have[p.slice(0, i).trim()] = 1; });
+        var extra = [];
+        dc.split(';').forEach(function (p) {
+          var i = p.indexOf('='); var n = i > 0 ? p.slice(0, i).trim() : '';
+          if (n && !have[n]) extra.push(p.trim());
+        });
+        if (extra.length) cookie = cookie + '; ' + extra.join('; ');
+      } else { cookie = dc; }
+    }
+    if (cookie) add('cookie', cookie);
+
+    add('accept', 'application/json, text/plain, */*');
+    if (req.body) add('content-type', 'application/json;charset=UTF-8');
+    add('origin', 'https://weread.qq.com');
+    if (location && location.href) add('referer', location.href);
+    add('user-agent', navigator.userAgent);
+
+    var lines = ['curl ' + shellQuote(req.url) + ' \\'];
+    order.forEach(function (k, i) {
+      var suffix = (i === order.length - 1 && !req.body) ? '' : ' \\';
+      lines.push('  -H ' + shellQuote(map[k].n + ': ' + map[k].v) + suffix);
     });
+    if (req.body) lines.push('  --data-raw ' + shellQuote(req.body));
+    return lines.join('\n');
+  }
+
+  // ---- 浮层 UI ----
+  function setStatus(msg, color) {
+    statusEl.textContent = msg;
+    statusEl.style.color = color || '#555';
+  }
+
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { setStatus('✅ 已复制到剪贴板', '#27ae60'); })
+        .catch(function () { fallbackCopy(t); });
+    } else { fallbackCopy(t); }
+  }
+
+  function fallbackCopy(t) {
+    try {
+      textEl.select(); textEl.setSelectionRange(0, 999999);
+      document.execCommand('copy');
+      setStatus('✅ 已复制到剪贴板', '#27ae60');
+    } catch (e) { setStatus('复制失败，请手动选中复制', '#c0392b'); }
+  }
+
+  function ensurePanel() {
+    if (panel) return;
+    panel = document.createElement('div');
+    panel.style.cssText = 'position:fixed;top:24px;right:24px;z-index:2147483647;width:620px;max-width:94vw;background:#fff;border:1px solid #d0d0d0;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.25);padding:16px;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#222;line-height:1.6;';
+    var title = document.createElement('div');
+    title.style.cssText = 'font-size:15px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;';
+    var titleText = document.createElement('span');
+    titleText.textContent = '🎣 wxread curl 捕获工具';
+    var close = document.createElement('a');
+    close.href = 'javascript:void(0)';
+    close.textContent = '✕';
+    close.style.cssText = 'color:#888;text-decoration:none;font-size:16px;';
+    close.addEventListener('click', function () { panel.style.display = 'none'; });
+    title.appendChild(titleText); title.appendChild(close);
+    statusEl = document.createElement('div');
+    statusEl.style.cssText = 'margin-bottom:8px;color:#555;';
+    setStatus('正在监听… 请在阅读页翻一页，触发阅读上报（自动捕获）');
+    textEl = document.createElement('textarea');
+    textEl.style.cssText = 'width:100%;height:200px;box-sizing:border-box;font-family:Consolas,Monaco,monospace;font-size:11px;padding:8px;border:1px solid #ddd;border-radius:6px;resize:vertical;';
+    textEl.readOnly = true;
+    var btns = document.createElement('div');
+    btns.style.cssText = 'margin-top:8px;display:flex;gap:8px;align-items:center;';
+    var copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋 复制 curl_bash';
+    copyBtn.style.cssText = 'padding:6px 14px;background:#2b6ef2;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px;';
+    copyBtn.addEventListener('click', function () { copyText(textEl.value); });
+    var reBtn = document.createElement('button');
+    reBtn.textContent = '🔄 重新监听';
+    reBtn.style.cssText = 'padding:6px 14px;background:#fff;color:#333;border:1px solid #ccc;border-radius:6px;cursor:pointer;font-size:13px;';
+    reBtn.addEventListener('click', function () {
+      captured = null; textEl.value = '';
+      setStatus('正在监听… 请翻页触发阅读上报');
+      startTimer();
+    });
+    var hint = document.createElement('span');
+    hint.style.cssText = 'color:#999;font-size:12px;';
+    hint.textContent = '提示：若 cookie 缺 HttpOnly 项仍报错，请改用 F12 方式';
+    btns.appendChild(copyBtn); btns.appendChild(reBtn); btns.appendChild(hint);
+    panel.appendChild(title); panel.appendChild(statusEl); panel.appendChild(textEl); panel.appendChild(btns);
+    document.body.appendChild(panel);
+  }
+
+  function startTimer() {
+    clearTimeout(timer);
+    timer = setTimeout(function () {
+      if (!captured) setStatus('⏳ 60 秒内未捕获到阅读请求：请确认已打开阅读页并翻页', '#c0392b');
+    }, 60000);
+  }
+
+  function showResult() {
+    clearTimeout(timer);
+    var bash = buildCurl(captured);
+    textEl.value = bash;
+    setStatus('✅ 已捕获阅读请求！请复制 curl_bash 并粘贴到控制面板', '#27ae60');
+    setTimeout(function () { copyText(bash); }, 300);
+  }
+
+  window.__wxreadCurlCap = {
+    show: function () { ensurePanel(); panel.style.display = 'block'; },
+  };
+
+  ensurePanel();
+  startTimer();
 })();
