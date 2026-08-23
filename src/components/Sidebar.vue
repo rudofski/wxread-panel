@@ -26,7 +26,7 @@ const auth = useAuthStore();
 
 const navItems = [
   { path: '/', icon: '📊', label: '仪表盘' },
-  { path: '/config', icon: '⚙️', label: '配置' },
+  { path: '/config', icon: '⚙️', label: '配置参数' },
   { path: '/calendar', icon: '📅', label: '运行日历' },
 ];
 

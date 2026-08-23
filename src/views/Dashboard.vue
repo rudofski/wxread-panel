@@ -1,6 +1,6 @@
 <template>
   <div class="dashboard">
-    <h2 class="page-title">📊 仪表盘</h2>
+    <h2 class="page-title">📊 运行状态</h2>
 
     <div class="status-grid">
       <div class="card status-card"><div class="card-title">项目接口</div><div class="status-body"><span class="status-dot" :class="repoClass"></span><span>{{ repoStatusText }}</span></div></div>
@@ -17,9 +17,9 @@
           <div class="run-day-label">{{ day.label }}</div>
           <div class="run-day-body">
             <div v-for="run in day.runs" :key="run.id" class="run-item" :title="run.name">
-              <span class="run-status">{{ run.status === 'in_progress' ? '🔄' : run.conclusion === 'success' ? '🟢' : run.conclusion === 'failure' ? '🔴' : '⚪' }}</span>
+              <span class="run-dot" :class="dotClass(run)"></span>
               <span class="run-time">{{ formatTime(run.created_at) }}</span>
-              <span class="run-result" :class="runClass(run)">{{ runText(run) }}</span>
+              <span class="run-duration">{{ formatDuration(run) }}</span>
             </div>
             <div v-if="day.runs.length === 0" class="run-empty">-</div>
           </div>
@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { dispatchWorkflow, listWorkflowRuns, type RunInfo } from '@/api/github';
 
@@ -96,17 +96,22 @@ const dateAxis = computed(() => {
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
-function runText(run: RunInfo): string {
-  if (run.status === 'in_progress') return '运行中';
-  if (run.conclusion === 'success') return '成功';
-  if (run.conclusion === 'failure') return '失败';
-  return '';
-}
-function runClass(run: RunInfo): string {
+// 运行状态只用圆点图标表达（绿=成功 / 红=失败 / 蓝=运行中 / 灰=其他）
+function dotClass(run: RunInfo): string {
   if (run.status === 'in_progress') return 'running';
   if (run.conclusion === 'success') return 'ok';
   if (run.conclusion === 'failure') return 'error';
-  return '';
+  return 'idle';
+}
+// 阅读时长 = 运行耗时（updated_at - run_started_at），如 30 分钟 / 12分30秒
+function formatDuration(run: RunInfo): string {
+  if (run.status === 'in_progress' || !run.run_started_at) return '···';
+  const start = new Date(run.run_started_at).getTime();
+  const end = run.updated_at ? new Date(run.updated_at).getTime() : Date.now();
+  const sec = Math.max(0, Math.round((end - start) / 1000));
+  if (sec < 60) return `${sec}秒`;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return s > 0 ? `${m}分${s}秒` : `${m}分钟`;
 }
 
 async function loadRecentRuns() {
@@ -135,17 +140,20 @@ onMounted(() => { loadRecentRuns(); });
 .dashboard { max-width: 100%; }
 .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-.runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
-.run-day { flex-shrink: 0; width: 86px; border-radius: 6px; background: #f9f9f9; padding: 8px; }
+/* 14 天横向铺满整个显示区域 */
+.runs-axis { display: flex; gap: 8px; }
+.run-day { flex: 1 1 0; min-width: 0; border-radius: 6px; background: #f9f9f9; padding: 8px; }
 .run-day-label { text-align: center; font-size: 12px; color: var(--color-text-light); padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; }
-.run-day-body { display: flex; flex-direction: column; gap: 4px; min-height: 24px; }
-.run-item { display: flex; align-items: center; gap: 4px; font-size: 12px; }
-.run-status { font-size: 12px; }
+.run-day-body { display: flex; flex-direction: column; gap: 6px; min-height: 24px; }
+.run-item { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
+.run-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.run-dot.ok { background: var(--color-success); }
+.run-dot.error { background: var(--color-danger); }
+.run-dot.running { background: var(--color-primary); animation: run-pulse 1s ease-in-out infinite; }
+.run-dot.idle { background: #ccc; }
+@keyframes run-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .run-time { color: var(--color-text-light); font-size: 11px; }
-.run-result { font-size: 11px; }
-.run-result.ok { color: var(--color-success); }
-.run-result.error { color: var(--color-danger); }
-.run-result.running { color: var(--color-primary); }
+.run-duration { font-size: 11px; color: var(--color-text-light); }
 .run-empty { text-align: center; color: #ddd; font-size: 12px; }
 .quick-actions { display: flex; align-items: center; gap: 12px; }
 .hint { font-size: 13px; color: var(--color-text-light); }

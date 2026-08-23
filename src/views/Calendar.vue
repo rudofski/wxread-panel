@@ -18,12 +18,10 @@
             </div>
           </div>
           <div class="legend">
-            <span>少</span>
             <span class="legend-cell cell-empty"></span>
             <span class="legend-cell cell-success"></span>
             <span class="legend-cell cell-failure"></span>
             <span class="legend-cell cell-running"></span>
-            <span>多</span>
           </div>
         </div>
       </div>
@@ -72,8 +70,10 @@ const weeks = computed(() => {
   gridStart.setDate(start.getDate() - mondayIndex);
 
   const dayMap = new Map<string, { s: string; error?: string }>();
+  // runs 按时间倒序（最新在前），只记录每日最早遇到的（即最新）一条，避免被更早记录覆盖
   for (const run of runs.value) {
     const date = (run.run_started_at || run.created_at).slice(0, 10);
+    if (dayMap.has(date)) continue;
     if (run.status === 'in_progress') dayMap.set(date, { s: 'running' });
     else if (run.conclusion === 'success') dayMap.set(date, { s: 'success' });
     else if (run.conclusion === 'failure') {
