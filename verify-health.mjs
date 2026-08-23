@@ -1,7 +1,9 @@
 // 线上部署健康检查（无需登录 token）
-// 检查：入口 / 登录页 / 配置页路由守卫 / curl-helper / favicon / JS bundle
+// 检查：入口 / 登录页（或密码门锁屏）/ 配置页路由守卫 / curl-helper / favicon / JS bundle
 // 运行：node verify-health.mjs
 // 部署后一键确认线上健康；配合 verify-save.mjs（需真实 PAT）可覆盖完整链路。
+// 密码门已启用时（配置了 PANEL_PASSWORD_HASH Secret），打开面板先显示锁屏，
+// 登录页元素不可见属预期行为，脚本会自动识别锁屏并视为通过。
 import { chromium } from '@playwright/test';
 
 const BASE = process.env.PANEL_URL || 'https://rudofski.github.io/wxread-panel/';
@@ -20,13 +22,19 @@ const r1 = await page.goto(BASE, { waitUntil: 'load', timeout: 45000 });
 const h1 = await page.locator('h1').innerText().catch(() => '(未渲染)');
 report('入口', r1.status() === 200 && h1.includes('wxread 控制面板'), `status=${r1.status()} h1="${h1}"`);
 
-// 2. 登录页
+// 2. 登录页（密码门启用时先显示锁屏）
 await page.goto(BASE + '#/login', { waitUntil: 'load', timeout: 45000 });
-const hasInput = (await page.getByPlaceholder('ghp_xxxxxxxxxxxx').count()) > 0;
-const hasCreateLink = (await page.getByRole('link', { name: /创建 Token/ }).count()) > 0;
-const hasOAuth = (await page.getByRole('button', { name: /GitHub 授权登录/ }).count()) > 0;
-report('登录页', hasInput && hasCreateLink && !hasOAuth,
-  `token输入=${hasInput} 创建链接=${hasCreateLink} OAuth按钮=${hasOAuth ? '存在(异常)' : '无(正确)'}`);
+await page.waitForTimeout(500);
+const lockVisible = (await page.getByText('请输入访问密码', { exact: false }).count()) > 0;
+if (lockVisible) {
+  report('登录页', true, '密码门已启用：显示锁屏 🔒（登录页被保护，符合预期）');
+} else {
+  const hasInput = (await page.getByPlaceholder('ghp_xxxxxxxxxxxx').count()) > 0;
+  const hasCreateLink = (await page.getByRole('link', { name: /创建 Token/ }).count()) > 0;
+  const hasOAuth = (await page.getByRole('button', { name: /GitHub 授权登录/ }).count()) > 0;
+  report('登录页', hasInput && hasCreateLink && !hasOAuth,
+    `token输入=${hasInput} 创建链接=${hasCreateLink} OAuth按钮=${hasOAuth ? '存在(异常)' : '无(正确)'}`);
+}
 
 // 3. 配置页守卫（未登录应重定向登录页）
 await page.goto(BASE + '#/config', { waitUntil: 'load', timeout: 45000 });
