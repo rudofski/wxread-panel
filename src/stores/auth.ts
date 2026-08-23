@@ -4,16 +4,11 @@ import { resetOctokit } from '@/api/github';
 
 const TOKEN_KEY = 'github_token';
 
+// 纯 PAT 登录：GitHub Pages 纯前端无法安全完成 OAuth code → token 交换
+// （需要 client_secret 服务端代理），因此仅支持 Personal Access Token。
 export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY));
   const isAuthenticated = computed(() => !!token.value);
-
-  function getOAuthUrl(): string {
-    const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID || '';
-    const redirectUri = window.location.origin + '/wxread-panel/';
-    const scope = 'repo workflow';
-    return `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}`;
-  }
 
   function setToken(t: string): void {
     token.value = t;
@@ -26,5 +21,5 @@ export const useAuthStore = defineStore('auth', () => {
     resetOctokit();
   }
 
-  return { token, isAuthenticated, getOAuthUrl, setToken, logout };
+  return { token, isAuthenticated, setToken, logout };
 });

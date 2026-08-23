@@ -20,12 +20,11 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 
 ## 登录方式
 
-GitHub 纯前端无法安全完成 OAuth code → token 交换，**推荐使用 Personal Access Token 登录**：
+本项目为纯前端（GitHub Pages），无法安全完成 OAuth code → token 交换，**仅支持 Personal Access Token 登录**：
 
 1. 在 [GitHub Settings → Tokens](https://github.com/settings/tokens) 创建 token，勾选 `repo` 和 `workflow` 权限
 2. 打开面板 → 登录页 → 粘贴 token → 使用 Token 登录
-
-OAuth 按钮需要配置 `VITE_GITHUB_CLIENT_ID` 且仅在有服务端代理交换 token 时可用。
+3. Token 仅保存在浏览器 localStorage，退出登录即清除
 
 ## curl-helper 独立工具
 
@@ -36,9 +35,10 @@ OAuth 按钮需要配置 `VITE_GITHUB_CLIENT_ID` 且仅在有服务端代理交�
 
 ```bash
 npm install
-cp .env.example .env.local   # 填入 OAuth Client ID（可选）
 npm run dev                  # http://localhost:3000
 ```
+
+无需任何环境变量（纯 PAT 登录，不依赖 OAuth Client ID）。
 
 ## 测试
 
