@@ -11,12 +11,31 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 - 📅 运行日历 — 热力图展示，状态统计
 - 🔄 自动对接 — wxread 变量名变更时自动兼容
 
-## 部署
+## 部署（一键）
 
-1. Fork 本仓库
-2. 在 GitHub 注册 OAuth App（或使用 Personal Access Token）
-3. Settings → Pages 启用，Source 选 `gh-pages` 分支 / (root)
-4. 访问 `https://<你的用户名>.github.io/wxread-panel/`
+### 方式一：GitHub Actions 全自动（推荐）
+
+首次配置一次，之后 `git push` 即自动完成：Worker 部署 → 代理变量注入 → 构建 → Pages 发布。
+
+1. 创建仓库并推送：`git remote add origin https://github.com/<owner>/wxread-panel.git && git push -u origin master`
+2. 开启 GitHub Pages：仓库 `Settings → Pages` → Source 选 `Deploy from a branch` → `gh-pages` / `(root)`
+3. 配置 Cloudflare 凭据（仓库 `Settings → Secrets and variables → Actions → Secrets`）：
+   - `CF_API_TOKEN`：Cloudflare 账号 API Token（权限：Workers Scripts Edit）
+   - `CF_ACCOUNT_ID`：Cloudflare 账号 ID（dashboard 右下角）
+   - `CF_WORKER_SUBDOMAIN`：workers.dev 子域（Workers 页面右上角，不含前缀）
+4. 确保 Actions 工作流权限为读写：`Settings → Actions → General → Workflow permissions → Read and write permissions`
+5. 之后每次 `git push origin master`，Actions 自动部署；也可在 Actions 页手动运行 `Deploy to GitHub Pages`
+
+未配置 CF 凭据时 Worker 步骤自动跳过，面板其余功能正常，仅线上书城搜索需手动部署 Worker 并配置 `VITE_WEREAD_PROXY` 变量（见 `worker/README.md`）。
+
+### 方式二：本地脚本
+
+```bash
+./deploy.sh            # 部署 Worker + 推送触发部署
+./deploy.sh --skip-worker   # 只推送
+```
+
+访问 `https://<owner>.github.io/wxread-panel/`。
 
 ## 书城搜索（线上部署）
 
