@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildCurl } from '@/utils/curlBuilder';
+import { buildCurl, resolveUrl } from '@/utils/curlBuilder';
 
 // 书签小工具核心：把捕获到的微信读书 read 请求还原为完整 curl 命令。
 // 关键要求：必须包含 x-wrpa-0 签名头、cookie、--data-raw 请求体——
@@ -81,5 +81,20 @@ describe('curlBuilder（read 请求 → curl 命令）', () => {
     expect(lines[0]).toBe("curl 'https://weread.qq.com/web/book/read' \\");
     expect(lines[1]).toBe("  -H 'cookie: a=1' \\");
     expect(lines[lines.length - 1]).toBe("  --data-raw '{}'");
+  });
+
+  describe('resolveUrl（相对路径 → 绝对 URL，v0.1.5 修复）', () => {
+    it('以 / 开头的相对路径拼接页面源', () => {
+      expect(resolveUrl('/web/book/read', 'https://weread.qq.com')).toBe('https://weread.qq.com/web/book/read');
+    });
+
+    it('绝对 URL 保持不变', () => {
+      expect(resolveUrl('https://weread.qq.com/web/book/read', 'https://weread.qq.com')).toBe('https://weread.qq.com/web/book/read');
+      expect(resolveUrl('http://weread.qq.com/web/book/read', 'https://weread.qq.com')).toBe('http://weread.qq.com/web/book/read');
+    });
+
+    it('无前导斜杠的相对路径自动补斜杠', () => {
+      expect(resolveUrl('web/book/read', 'https://weread.qq.com')).toBe('https://weread.qq.com/web/book/read');
+    });
   });
 });

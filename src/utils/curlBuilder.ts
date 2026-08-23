@@ -10,6 +10,15 @@ export interface CapturedRequest {
 
 const SKIPPED_HEADERS = new Set(['host', 'content-length']);
 
+// 书签工具 hook 到的 fetch/XHR URL 可能是相对路径（如 '/web/book/read'），
+// curl 无法解析无 scheme 的相对路径，必须补全为绝对 URL（v0.1.5 修复）。
+export function resolveUrl(url: string, origin: string): string {
+  const u = String(url || '').trim();
+  if (/^https?:\/\//i.test(u)) return u;
+  if (u.startsWith('/')) return `${origin}${u}`;
+  return `${origin}/${u}`;
+}
+
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
