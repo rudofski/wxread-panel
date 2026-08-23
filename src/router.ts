@@ -5,7 +5,6 @@ const routes = [
   { path: '/login', name: 'Login', component: () => import('@/views/Login.vue') },
   { path: '/', name: 'Dashboard', component: () => import('@/views/Dashboard.vue'), meta: { requiresAuth: true } },
   { path: '/config', name: 'Config', component: () => import('@/views/Config.vue'), meta: { requiresAuth: true } },
-  { path: '/books', name: 'Books', component: () => import('@/views/Books.vue'), meta: { requiresAuth: true } },
   { path: '/tasks', name: 'Tasks', component: () => import('@/views/Tasks.vue'), meta: { requiresAuth: true } },
   { path: '/calendar', name: 'Calendar', component: () => import('@/views/Calendar.vue'), meta: { requiresAuth: true } },
 ];

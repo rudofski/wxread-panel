@@ -24,7 +24,6 @@ const auth = useAuthStore();
 const navItems = [
   { path: '/', icon: '📊', label: '仪表盘' },
   { path: '/config', icon: '⚙️', label: '配置' },
-  { path: '/books', icon: '📚', label: '书城' },
   { path: '/tasks', icon: '📋', label: '任务' },
   { path: '/calendar', icon: '📅', label: '日历' },
 ];

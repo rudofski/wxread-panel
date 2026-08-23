@@ -136,7 +136,7 @@ export function parseRunError(logs: string): string | null {
 // ============ 适配层 ============
 
 export interface PanelSettings {
-  readMinutes: number; pushMethod: string; wxpusherToken: string; curlBash: string; selectedBooks: string[];
+  readMinutes: number; pushMethod: string; wxpusherToken: string; curlBash: string;
   pushplusToken?: string; tgBotToken?: string; tgChatId?: string; serverchanToken?: string;
 }
 
@@ -152,7 +152,6 @@ export const wxreadAdapter = {
       pushMethod: vars.PUSH_METHOD || '',
       wxpusherToken: '',
       curlBash: '',
-      selectedBooks: (vars.SELECTED_BOOKS || '').split(',').map(s => s.trim()).filter(Boolean),
     };
   },
 
@@ -160,7 +159,6 @@ export const wxreadAdapter = {
     await updateVariable(owner, repo, 'READ_NUM', String(settings.readMinutes * 2));
     try { await updateVariable(owner, repo, 'READ_MINUTES', String(settings.readMinutes)); } catch {}
     if (settings.pushMethod) await updateVariable(owner, repo, 'PUSH_METHOD', settings.pushMethod);
-    if (settings.selectedBooks.length > 0) await updateVariable(owner, repo, 'SELECTED_BOOKS', settings.selectedBooks.join(','));
   },
 
   async pushSecrets(owner: string, repo: string, settings: PanelSettings): Promise<void> {

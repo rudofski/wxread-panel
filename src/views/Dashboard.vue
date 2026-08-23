@@ -31,7 +31,6 @@
       <div class="quick-actions">
         <button class="btn btn-primary" @click="$router.push('/tasks')">▶ 立即运行</button>
         <button class="btn btn-default" @click="$router.push('/config')">⚙️ 配置</button>
-        <button class="btn btn-default" @click="$router.push('/books')">📚 书城选书</button>
       </div>
     </div>
   </div>

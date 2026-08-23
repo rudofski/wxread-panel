@@ -16,7 +16,7 @@
     </div>
 
     <div class="card"><div class="card-title">操作</div>
-      <div class="actions-row"><button class="btn btn-primary" :disabled="isRunning || !canRun" @click="runNow">{{ isRunning ? '运行中...' : '立即运行' }}</button><span v-if="!settings.repoInfo" class="hint">请先连接仓库</span><span v-else-if="settings.selectedBooks.length === 0" class="hint">请先选择书籍</span></div>
+      <div class="actions-row"><button class="btn btn-primary" :disabled="isRunning || !canRun" @click="runNow">{{ isRunning ? '运行中...' : '立即运行' }}</button><span v-if="!settings.repoInfo" class="hint">请先在配置页连接仓库</span></div>
     </div>
 
     <div class="card"><div class="card-title">运行历史</div>
@@ -51,7 +51,7 @@ function saveScheduleSetting() {
     scheduleMsg.value = `❌ ${e.message}`; scheduleOk.value = false;
   }
 }
-const canRun = computed(() => !!settings.repoInfo && settings.selectedBooks.length > 0);
+const canRun = computed(() => !!settings.repoInfo);
 async function loadRuns() {
   if (!settings.repoInfo) return;
   loadingRuns.value = true;

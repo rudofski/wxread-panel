@@ -15,7 +15,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const pushMethod = ref('wxpusher');
   const wxpusherToken = ref('');
   const curlBash = ref('');
-  const selectedBooks = ref<string[]>([]);
   const pushplusToken = ref('');
   const tgBotToken = ref('');
   const tgChatId = ref('');
@@ -53,7 +52,6 @@ export const useSettingsStore = defineStore('settings', () => {
         const settings = await wxreadAdapter.fromGitHub(parsed.owner, parsed.repo);
         readMinutes.value = settings.readMinutes;
         if (settings.pushMethod) pushMethod.value = settings.pushMethod;
-        if (settings.selectedBooks.length > 0) selectedBooks.value = settings.selectedBooks;
       } catch {}
     } else { repoStatus.value = 'error'; repoMessage.value = result.message; }
   }
@@ -62,12 +60,12 @@ export const useSettingsStore = defineStore('settings', () => {
     if (!repoInfo.value) throw new Error('未连接仓库');
     const s: PanelSettings = {
       readMinutes: readMinutes.value, pushMethod: pushMethod.value,
-      wxpusherToken: wxpusherToken.value, curlBash: curlBash.value, selectedBooks: selectedBooks.value,
+      wxpusherToken: wxpusherToken.value, curlBash: curlBash.value,
       pushplusToken: pushplusToken.value, tgBotToken: tgBotToken.value, tgChatId: tgChatId.value, serverchanToken: serverchanToken.value,
     };
     await wxreadAdapter.toGitHub(repoInfo.value.owner, repoInfo.value.repo, s);
     await wxreadAdapter.pushSecrets(repoInfo.value.owner, repoInfo.value.repo, s);
   }
 
-  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, readMinutes, pushMethod, wxpusherToken, curlBash, selectedBooks, pushplusToken, tgBotToken, tgChatId, serverchanToken, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
+  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, readMinutes, pushMethod, wxpusherToken, curlBash, pushplusToken, tgBotToken, tgChatId, serverchanToken, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
 });

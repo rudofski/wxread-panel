@@ -7,41 +7,10 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
-  # 可选：自动部署书城搜索 CORS 代理（Cloudflare Worker）。
-  # 未配置 CF_API_TOKEN / CF_ACCOUNT_ID 时跳过，构建沿用仓库已有的
-  # VITE_WEREAD_PROXY 变量（手动部署 Worker 场景）。
-  deploy-worker:
-    runs-on: ubuntu-latest
-    if: secrets.CF_API_TOKEN != '' && secrets.CF_ACCOUNT_ID != ''
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Deploy Worker
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          workingDirectory: worker
-          command: deploy
-
-      - name: Set VITE_WEREAD_PROXY repository variable
-        env:
-          GH_TOKEN: ${{ github.token }}
-          WORKER_URL: https://wxread-search-proxy.${{ secrets.CF_WORKER_SUBDOMAIN }}.workers.dev
-        run: |
-          repo="${{ github.repository }}"
-          gh api -X PATCH "repos/$repo/actions/variables/VITE_WEREAD_PROXY" -f value="$WORKER_URL" \
-            || gh api -X POST "repos/$repo/actions/variables" -f name=VITE_WEREAD_PROXY -f value="$WORKER_URL"
-
   build-and-deploy:
     runs-on: ubuntu-latest
-    needs: deploy-worker
-    # worker job 被跳过（未配置 CF secrets）时仍继续构建部署
-    if: always() && (needs.deploy-worker.result == 'success' || needs.deploy-worker.result == 'skipped')
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,11 +26,6 @@ jobs:
 
       - name: Typecheck and build
         run: npm run build
-        env:
-          # 书城搜索 CORS 代理（Cloudflare Worker，见 worker/README.md）。
-          # 自动部署模式下由 deploy-worker 写入；手动模式下在仓库
-          # Actions Variables 预先配置 VITE_WEREAD_PROXY。
-          VITE_WEREAD_PROXY: ${{ vars.VITE_WEREAD_PROXY }}
 
       - name: Run unit tests
         run: npm run test:unit
