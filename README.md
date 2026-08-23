@@ -62,3 +62,10 @@ npm run test:unit    # Vitest 单元测试
 npm run test:e2e     # Playwright E2E（需 npx playwright install chromium）
 npm run build        # 类型检查 + 生产构建
 ```
+
+## 部署后检查
+
+```bash
+node verify-health.mjs                        # 线上健康检查（入口/登录/守卫/curl-helper，无需 token）
+GITHUB_PAT=ghp_xxx node verify-save.mjs       # 线上保存配置回归（需真实 PAT，token 不进对话）
+```
