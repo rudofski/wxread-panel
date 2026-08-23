@@ -102,10 +102,19 @@ export async function listWorkflowRuns(owner: string, repo: string, workflowId: 
   }));
 }
 
+// 运行日志：workflow run 的 logs 接口返回 zip 二进制，不便解析；
+// 改为取该 run 的第一个 job，走 job logs 纯文本接口。
 export async function getRunLogs(owner: string, repo: string, runId: number): Promise<string> {
   const client = getOctokit();
-  const resp = await client.rest.actions.downloadWorkflowRunLogs({ owner, repo, run_id: runId });
-  return typeof resp.data === 'string' ? resp.data : JSON.stringify(resp.data);
+  const jobs = await client.rest.actions.listJobsForWorkflowRun({ owner, repo, run_id: runId });
+  const job = jobs.data.jobs?.[0];
+  if (!job) return '';
+  const token = localStorage.getItem('github_token') || '';
+  const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/jobs/${job.id}/logs`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!resp.ok) return '';
+  return await resp.text();
 }
 
 // ============ 日志解析 ============
@@ -128,6 +137,7 @@ export function parseRunError(logs: string): string | null {
 
 export interface PanelSettings {
   readMinutes: number; pushMethod: string; wxpusherToken: string; curlBash: string; selectedBooks: string[];
+  pushplusToken?: string; tgBotToken?: string; tgChatId?: string; serverchanToken?: string;
 }
 
 export const wxreadAdapter = {
@@ -156,5 +166,9 @@ export const wxreadAdapter = {
   async pushSecrets(owner: string, repo: string, settings: PanelSettings): Promise<void> {
     if (settings.wxpusherToken && !settings.wxpusherToken.startsWith('***')) await updateSecret(owner, repo, 'WXPUSHER_SPT', settings.wxpusherToken);
     if (settings.curlBash && !settings.curlBash.startsWith('***')) await updateSecret(owner, repo, 'WXREAD_CURL_BASH', settings.curlBash);
+    if (settings.pushplusToken && !settings.pushplusToken.startsWith('***')) await updateSecret(owner, repo, 'PUSHPLUS_TOKEN', settings.pushplusToken);
+    if (settings.tgBotToken && !settings.tgBotToken.startsWith('***')) await updateSecret(owner, repo, 'TELEGRAM_BOT_TOKEN', settings.tgBotToken);
+    if (settings.tgChatId && !settings.tgChatId.startsWith('***')) await updateSecret(owner, repo, 'TELEGRAM_CHAT_ID', settings.tgChatId);
+    if (settings.serverchanToken && !settings.serverchanToken.startsWith('***')) await updateSecret(owner, repo, 'SERVERCHAN_SPT', settings.serverchanToken);
   },
 };

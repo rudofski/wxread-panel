@@ -12,12 +12,22 @@ const routes = [
 
 const router = createRouter({ history: createWebHashHistory(), routes });
 
+// 纯前端无法安全完成 OAuth code → token 交换（需要 client_secret 服务端代理）。
+// 若回调参数 code 看起来不是 access token，拒绝存储并引导使用 PAT。
+function looksLikeToken(v: string): boolean {
+  return /^(ghp_|github_pat_|gho_|ghu_|ghs_)/.test(v);
+}
+
 router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore();
   const code = to.query.code as string;
   if (code) {
-    auth.setToken(code);
-    next({ path: '/', query: {}, replace: true });
+    if (looksLikeToken(code)) {
+      auth.setToken(code);
+      next({ path: '/', query: {}, replace: true });
+      return;
+    }
+    next({ path: '/login', query: { error: 'oauth_unsupported' }, replace: true });
     return;
   }
   if (to.meta.requiresAuth && !auth.isAuthenticated) { next('/login'); }

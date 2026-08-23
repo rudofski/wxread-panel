@@ -52,10 +52,11 @@ const repoStatusText = computed(() => {
   if (settings.repoStatus === 'error') return settings.repoMessage || '未连接';
   return '请先配置仓库地址';
 });
+// GitHub Secrets 无法远程读取，curl_bash/推送 token 只有在本次会话中输入过才会为非空
 const wereadClass = computed(() => settings.curlBash ? 'ok' : 'warning');
-const wereadStatusText = computed(() => settings.curlBash ? '已配置' : '未配置登录信息');
+const wereadStatusText = computed(() => settings.curlBash ? '已配置（本次会话）' : 'Secrets 不可读，请在配置页输入验证');
 const pushClass = computed(() => settings.wxpusherToken ? 'ok' : 'warning');
-const pushStatusText = computed(() => settings.wxpusherToken ? '已配置' : '尚未配置推送');
+const pushStatusText = computed(() => settings.wxpusherToken ? '已配置（本次会话）' : 'Secrets 不可读，请在配置页输入验证');
 
 function copyUrl() { navigator.clipboard.writeText(panelUrl.value); }
 function formatDate(dateStr: string): string { return new Date(dateStr).toLocaleString('zh-CN'); }

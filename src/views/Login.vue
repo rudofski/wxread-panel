@@ -4,7 +4,10 @@
       <h1>wxread 控制面板</h1>
       <p class="login-desc">通过 GitHub 授权管理你的微信读书刷时长任务</p>
       <div class="login-methods">
-        <button class="btn btn-primary login-btn" @click="oauthLogin">🔑 GitHub 授权登录</button>
+        <button class="btn btn-primary login-btn" @click="oauthLogin" :disabled="!oauthReady" :title="oauthReady ? '' : '未配置 VITE_GITHUB_CLIENT_ID'">
+          🔑 GitHub 授权登录
+        </button>
+        <p v-if="!oauthReady" class="form-hint">OAuth 登录需配置 Client ID；且纯前端无法完成授权回调，推荐直接使用下方 Token 登录。</p>
         <div class="divider"><span>或手动输入 Token</span></div>
         <div class="form-group">
           <label class="form-label">GitHub Personal Access Token</label>
@@ -14,19 +17,24 @@
         <button class="btn btn-default login-btn" @click="manualLogin" :disabled="!inputToken">使用 Token 登录</button>
       </div>
       <p v-if="error" class="error-msg">{{ error }}</p>
+      <p v-if="route.query.error === 'oauth_unsupported'" class="error-msg">
+        OAuth 授权需要服务端代理（纯前端无法安全换取 token），请改用下方 Personal Access Token 登录。
+      </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 
+const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const inputToken = ref('');
 const error = ref('');
+const oauthReady = computed(() => !!(import.meta.env.VITE_GITHUB_CLIENT_ID || ''));
 
 function oauthLogin() { window.location.href = auth.getOAuthUrl(); }
 

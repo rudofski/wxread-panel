@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { resetOctokit } from '@/api/github';
 
 const TOKEN_KEY = 'github_token';
 
@@ -22,6 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout(): void {
     token.value = null;
     localStorage.removeItem(TOKEN_KEY);
+    resetOctokit();
   }
 
   return { token, isAuthenticated, getOAuthUrl, setToken, logout };

@@ -15,9 +15,13 @@ import { useSettingsStore } from '@/stores/settings';
 const settings = useSettingsStore();
 const method_ = ref(settings.pushMethod);
 const token = ref(settings.wxpusherToken);
-const pushplusToken = ref(''), tgBotToken = ref(''), tgChatId = ref(''), serverchanToken = ref('');
+const pushplusToken = ref(settings.pushplusToken), tgBotToken = ref(settings.tgBotToken), tgChatId = ref(settings.tgChatId), serverchanToken = ref(settings.serverchanToken);
 watch(method_, v => { settings.pushMethod = v; });
 watch(token, v => { settings.wxpusherToken = v; });
+watch(pushplusToken, v => { settings.pushplusToken = v; });
+watch(tgBotToken, v => { settings.tgBotToken = v; });
+watch(tgChatId, v => { settings.tgChatId = v; });
+watch(serverchanToken, v => { settings.serverchanToken = v; });
 </script>
 <style scoped>
 .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
