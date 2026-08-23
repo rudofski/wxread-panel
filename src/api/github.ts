@@ -61,7 +61,19 @@ export async function updateVariable(owner: string, repo: string, name: string, 
   }
 }
 
-// ============ Secrets 写入 ============
+// ============ Secrets 检测与写入 ============
+
+// GitHub API 可查询 secret 是否存在（返回元数据，不返回明文值）
+export async function secretExists(owner: string, repo: string, name: string): Promise<boolean> {
+  const client = getOctokit();
+  try {
+    await client.request('GET /repos/{owner}/{repo}/actions/secrets/{secret_name}', { owner, repo, secret_name: name });
+    return true;
+  } catch (e: any) {
+    if (e.status === 404) return false;
+    throw e;
+  }
+}
 
 export async function updateSecret(owner: string, repo: string, name: string, value: string): Promise<void> {
   const client = getOctokit();

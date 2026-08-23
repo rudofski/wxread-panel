@@ -33,6 +33,7 @@ import {
   wxreadAdapter,
   resetOctokit,
   getRunLogs,
+  secretExists,
 } from '@/api/github';
 import { __mockRequest, __mockReposGet, __mockCreateDispatch, __mockListRuns, __mockListJobs } from '@octokit/rest';
 
@@ -96,6 +97,28 @@ describe('GitHub API 交互', () => {
     });
     const s = await wxreadAdapter.fromGitHub('o', 'r');
     expect(s.readMinutes).toBe(60);
+  });
+
+  it('secretExists：secret 存在返回 true', async () => {
+    __mockRequest.mockResolvedValue({ status: 204 });
+    expect(await secretExists('o', 'r', 'WXREAD_CURL_BASH')).toBe(true);
+    expect(__mockRequest).toHaveBeenCalledWith('GET /repos/{owner}/{repo}/actions/secrets/{secret_name}', {
+      owner: 'o', repo: 'r', secret_name: 'WXREAD_CURL_BASH',
+    });
+  });
+
+  it('secretExists：secret 不存在（404）返回 false', async () => {
+    const err: any = new Error('Not Found');
+    err.status = 404;
+    __mockRequest.mockRejectedValue(err);
+    expect(await secretExists('o', 'r', 'WXREAD_CURL_BASH')).toBe(false);
+  });
+
+  it('secretExists：其他错误向上抛出', async () => {
+    const err: any = new Error('Forbidden');
+    err.status = 403;
+    __mockRequest.mockRejectedValue(err);
+    await expect(secretExists('o', 'r', 'X')).rejects.toThrow();
   });
 
   it('getRunLogs 拉取第一个 job 的纯文本日志', async () => {

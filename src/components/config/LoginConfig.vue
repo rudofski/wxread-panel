@@ -22,11 +22,13 @@
   </div>
 </template>
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 const settings = useSettingsStore();
 const bash = ref(settings.curlBash);
 const helperUrl = computed(() => `${import.meta.env.BASE_URL}curl-helper/index.html`);
+// 同步到 store，保存配置时才能写入 GitHub Secrets（此前缺失导致 WXREAD_CURL_BASH 从未保存）
+watch(bash, v => { settings.curlBash = v; });
 </script>
 <style scoped>
 .get-curl {

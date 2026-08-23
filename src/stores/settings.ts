@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import { detectRepo, parseRepoUrl, wxreadAdapter, listWorkflows, type RepoInfo, type WorkflowInfo } from '@/api/github';
+import { detectRepo, parseRepoUrl, wxreadAdapter, listWorkflows, secretExists, type RepoInfo, type WorkflowInfo } from '@/api/github';
 import type { PanelSettings } from '@/api/github';
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -16,6 +16,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const wxpusherToken = ref('');
   const curlBash = ref('');
   const pushplusToken = ref('');
+  // 远程 Secrets 存在性（GitHub API 只返回元数据，不返回明文值）
+  const remoteSecrets = ref<Record<string, boolean>>({});
   const tgBotToken = ref('');
   const tgChatId = ref('');
   const serverchanToken = ref('');
@@ -53,6 +55,7 @@ export const useSettingsStore = defineStore('settings', () => {
         readMinutes.value = settings.readMinutes;
         if (settings.pushMethod) pushMethod.value = settings.pushMethod;
       } catch {}
+      await refreshSecretStatus();
     } else { repoStatus.value = 'error'; repoMessage.value = result.message; }
   }
 
@@ -65,7 +68,23 @@ export const useSettingsStore = defineStore('settings', () => {
     };
     await wxreadAdapter.toGitHub(repoInfo.value.owner, repoInfo.value.repo, s);
     await wxreadAdapter.pushSecrets(repoInfo.value.owner, repoInfo.value.repo, s);
+    await refreshSecretStatus();
   }
 
-  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, readMinutes, pushMethod, wxpusherToken, curlBash, pushplusToken, tgBotToken, tgChatId, serverchanToken, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
+  // 检测目标仓库中关键 Secrets 是否存在
+  async function refreshSecretStatus() {
+    if (!repoInfo.value) return;
+    const names = ['WXREAD_CURL_BASH', 'WXPUSHER_SPT', 'PUSHPLUS_TOKEN', 'TELEGRAM_BOT_TOKEN', 'SERVERCHAN_SPT'];
+    const status: Record<string, boolean> = {};
+    for (const n of names) {
+      try {
+        status[n] = await secretExists(repoInfo.value.owner, repoInfo.value.repo, n);
+      } catch {
+        status[n] = false;
+      }
+    }
+    remoteSecrets.value = status;
+  }
+
+  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, readMinutes, pushMethod, wxpusherToken, curlBash, pushplusToken, tgBotToken, tgChatId, serverchanToken, remoteSecrets, refreshSecretStatus, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
 });

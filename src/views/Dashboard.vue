@@ -51,11 +51,19 @@ const repoStatusText = computed(() => {
   if (settings.repoStatus === 'error') return settings.repoMessage || '未连接';
   return '请先配置仓库地址';
 });
-// GitHub Secrets 无法远程读取，curl_bash/推送 token 只有在本次会话中输入过才会为非空
-const wereadClass = computed(() => settings.curlBash ? 'ok' : 'warning');
-const wereadStatusText = computed(() => settings.curlBash ? '已配置（本次会话）' : 'Secrets 不可读，请在配置页输入验证');
-const pushClass = computed(() => settings.wxpusherToken ? 'ok' : 'warning');
-const pushStatusText = computed(() => settings.wxpusherToken ? '已配置（本次会话）' : 'Secrets 不可读，请在配置页输入验证');
+// GitHub Secrets 的明文不可读，但可通过 API 检测存在性（连接仓库时刷新）
+const wereadClass = computed(() => settings.remoteSecrets['WXREAD_CURL_BASH'] || settings.curlBash ? 'ok' : 'warning');
+const wereadStatusText = computed(() => {
+  if (settings.remoteSecrets['WXREAD_CURL_BASH']) return '已配置（远程 Secrets）';
+  if (settings.curlBash) return '已填入（尚未保存到远程）';
+  return '未配置，请到配置页获取并保存';
+});
+const pushClass = computed(() => settings.remoteSecrets['WXPUSHER_SPT'] || settings.wxpusherToken ? 'ok' : 'warning');
+const pushStatusText = computed(() => {
+  if (settings.remoteSecrets['WXPUSHER_SPT']) return '已配置（远程 Secrets）';
+  if (settings.wxpusherToken) return '已填入（尚未保存到远程）';
+  return '未配置，请到配置页设置';
+});
 
 function copyUrl() { navigator.clipboard.writeText(panelUrl.value); }
 function formatDate(dateStr: string): string { return new Date(dateStr).toLocaleString('zh-CN'); }
