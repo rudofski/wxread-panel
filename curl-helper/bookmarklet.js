@@ -43,12 +43,21 @@
     try { return String(b); } catch (e) { return ''; }
   }
 
+  // hook 到的 URL 可能是相对路径（如 '/web/book/read'），curl 无法解析无 scheme 的地址，
+  // 必须补全为绝对 URL（v0.1.5 修复——此前相对 URL 导致 curl 直接失败）
+  function resolveUrl(u) {
+    u = String(u || '').trim();
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.indexOf('/') === 0) return location.origin + u;
+    return location.origin + '/' + u;
+  }
+
   function capture(url, headers, body, method) {
     if (!isReadUrl(url)) return;
     var h = pickHeaders(headers);
     var b = bodyToString(body);
     if (method === 'GET') b = '';
-    captured = { url: url, headers: h, body: b };
+    captured = { url: resolveUrl(url), headers: h, body: b };
     showResult();
   }
 
@@ -199,11 +208,24 @@
     }, 60000);
   }
 
+  function missingKeys(cookieStr) {
+    var have = {};
+    String(cookieStr || '').split(';').forEach(function (p) { var i = p.indexOf('='); if (i > 0) have[p.slice(0, i).trim()] = 1; });
+    var keys = ['wr_vid', 'wr_skey', 'wr_rt'];
+    return keys.filter(function (k) { return !have[k]; });
+  }
+
   function showResult() {
     clearTimeout(timer);
     var bash = buildCurl(captured);
     textEl.value = bash;
-    setStatus('✅ 已捕获阅读请求！请复制 curl_bash 并粘贴到控制面板', '#27ae60');
+    var missing = missingKeys(captured.headers.cookie || document.cookie);
+    if (missing.length) {
+      // HttpOnly cookie（wr_vid/wr_skey 等）浏览器不向 JS 暴露，提示改用 F12 方式
+      setStatus('⚠️ 已捕获，但缺少 ' + missing.join('、') + '（HttpOnly，JS 无法读取）：若接口报未登录/401，请用 F12 → Copy as cURL (bash)', '#e67e22');
+    } else {
+      setStatus('✅ 已捕获阅读请求！请复制 curl_bash 并粘贴到控制面板', '#27ae60');
+    }
     setTimeout(function () { copyText(bash); }, 300);
   }
 
