@@ -1,12 +1,13 @@
 # wxread-panel 扩展辅助工程设计文档
 
-> 版本：v0.1.3  \
+> 版本：v0.1.4  \
 > 日期：2026-08-23  \
-> 对应提交：`4a0956d`  \
+> 对应提交：`862be07`  \
 > 关联仓库：[rudofski/wxread](https://github.com/rudofski/wxread/)  \
 > v0.1.1 变更：移除书城搜索与 Cloudflare Worker 代理；认证改为纯 PAT；热力图改自绘实现  \
 > v0.1.2 变更：Secrets 加密根因修复（tweetnacl 随机 nonce → libsodium `crypto_box_seal`）；新增可选密码门；线上保存配置验证通过（422 错误消失）  \
-> v0.1.3 变更：**记忆存储 + wxread 回读**（配置持久化 localStorage，打开面板自动连接回读远程状态）；密码门哈希化（`VITE_PANEL_PASSWORD` → `VITE_PANEL_PASSWORD_HASH`，修复明文内联缺陷）；curl_bash 保存根因修复 + 仪表盘远程 Secrets 存在性检测；新增密码哈希脚本与线上健康检查脚本
+> v0.1.3 变更：**记忆存储 + wxread 回读**（配置持久化 localStorage，打开面板自动连接回读远程状态）；密码门哈希化（`VITE_PANEL_PASSWORD` → `VITE_PANEL_PASSWORD_HASH`，修复明文内联缺陷）；curl_bash 保存根因修复 + 仪表盘远程 Secrets 存在性检测；新增密码哈希脚本与线上健康检查脚本  \
+> v0.1.4 变更：**UI 布局重构**——内容区全宽（保留侧边栏）；仪表盘移除控制入口卡片、最近运行改横向日期轴、立即运行直接触发；删除任务管理页（定时任务并入配置页）；配置 5 模块网格平铺；运行日历改横向 GitHub 贡献图风格
 
 ---
 
@@ -130,12 +131,12 @@ wxread-panel/
 │   │       ├── RepoInput.vue    # 仓库地址输入 + 自动检测
 │   │       ├── LoginConfig.vue  # curl_bash 输入（watch 同步 store）+ 一键获取引导
 │   │       ├── PushConfig.vue   # 推送方式 + 各平台 token
-│   │       └── ReadConfig.vue   # 阅读时长（分钟 ↔ 次数）
+│   │       ├── ReadConfig.vue   # 阅读时长（分钟 ↔ 次数）
+│   │       └── ScheduleCard.vue # 定时任务设置（v0.1.4 从任务页并入配置页）
 │   └── views/
-│       ├── Dashboard.vue        # 仪表盘首页（远程 Secrets 存在性 + 会话输入态双维度状态）
-│       ├── Config.vue           # 配置页面
-│       ├── Tasks.vue            # 任务管理页面（含定时 + 15s 轮询）
-│       └── Calendar.vue         # 自绘热力图页面
+│       ├── Dashboard.vue        # 仪表盘（状态面板 + 横向最近运行 + 立即运行直接触发）
+│       ├── Config.vue           # 配置页面（5 模块网格平铺）
+│       └── Calendar.vue         # 运行日历（横向 GitHub 贡献图）
 ├── tests/
 │   ├── api/github.test.ts       # 纯函数（URL/错误解析）6
 │   ├── api/github-api.test.ts   # mock Octokit 交互测试（含 secretExists）10
@@ -171,7 +172,14 @@ wxread-panel/
 - 密码门为可选第一道门（防共用设备）；前端校验可被绕过，真正防线仍是 PAT token
 - **v0.1.3 哈希化**：Vite 会把 `VITE_` 前缀变量静态内联进 JS 产物，原 `VITE_PANEL_PASSWORD` 会泄露明文密码；改为注入 `VITE_PANEL_PASSWORD_HASH`（SHA-256 hex），产物仅含哈希（已实证 grep 验证）
 
-### 5.2 记忆存储 + wxread 回读（v0.1.3）
+### 5.2 布局与信息架构（v0.1.4）
+
+- **全宽内容区**：保留左侧固定导航（仪表盘/配置/运行日历），各页面移除 `max-width` 限制，内容撑满剩余宽度
+- **仪表盘**：移除"控制入口"卡片；最近运行以**日期为横轴**（最近 14 天，左早右近），每日一列、列内竖向排列该日多条记录（时间 + 状态图标 + 成功/失败/运行中），不显示项目名
+- **配置页**：项目接口 / 登录方式 / 推送接口 / 阅读设置 / 定时任务 5 卡片**网格平铺**（`auto-fill minmax(340px, 1fr)`），保存按钮独立底部栏
+- **任务管理移除**：Tasks 页/路由/导航删除，定时任务并入配置页（ScheduleCard）
+
+### 5.3 记忆存储 + wxread 回读（v0.1.3）
 
 ```
 打开面板（App.vue onMounted）
@@ -188,7 +196,7 @@ wxread-panel/
 - **回读**：连接成功后 `wxreadAdapter.fromGitHub` 回读 Variables 覆盖本地值，`refreshSecretStatus` 检测 Secrets 存在性
 - 安全边界：curl_bash / 推送 token 与 PAT 同存 localStorage（同一安全模型，XSS 风险文档化）；GitHub Secrets 的**值**不可读（API 限制），只能检测存在性
 
-### 5.3 配置读写
+### 5.4 配置读写
 
 ```
 Config.vue
@@ -206,7 +214,7 @@ Config.vue
   → Secrets 不可读值：面板以 secretExists 检测存在性（v0.1.3 起）
 ```
 
-### 5.4 Secrets 加密（v0.1.2 根因修复记录）
+### 5.5 Secrets 加密（v0.1.2 根因修复记录）
 
 GitHub Secrets API 要求 libsodium `crypto_box_seal`（curve25519 sealed box）：
 
@@ -218,19 +226,18 @@ GET /repos/{owner}/{repo}/actions/secrets/public-key
 
 **历史根因**：v0.1.1 曾用 tweetnacl 以**随机 nonce** 手动拼装密封盒，而 libsodium 的 nonce 由 `blake2b(临时公钥 || 接收方公钥)` 派生，GitHub 服务器解封失败，报 `improperly encrypted secret`（422）。旧测试用 tweetnacl 自解封（接受任意 nonce）掩盖了问题。v0.1.2 改用 libsodium-wrappers，测试改为**与 libsodium 互操作验证**（模拟 GitHub 服务器解封），并显式使用 ORIGINAL base64 变体。线上实测（真实 PAT 保存配置）422 已消失。
 
-### 5.5 触发运行
+### 5.6 触发运行
 
 ```
-用户点击"立即运行"
+仪表盘"立即运行"（v0.1.4 起直接触发，不再跳转任务页）
   → dispatchWorkflow({ owner, repo, workflow_id, ref })
   → GitHub Actions 启动
-  → 前端 15s 轮询 listWorkflowRuns
-  → 状态变化 → 更新任务列表 + 热力图
+  → 内联反馈（触发成功/失败）+ 3s 后刷新最近运行
 ```
 
-支持：立即运行、每日定时（面板记录偏好，实际 cron 在 wxread 仓库）、停止/删除运行。
+支持：立即运行（仪表盘快捷操作）、每日定时（配置页 ScheduleCard，面板记录偏好，实际 cron 在 wxread 仓库）。停止/删除运行随任务管理页移除（v0.1.4）。
 
-### 5.6 curl_bash 获取（替代 v0.1.0 书城搜索）
+### 5.7 curl_bash 获取（替代 v0.1.0 书城搜索）
 
 微信读书登录凭证 `WXREAD_CURL_BASH` 无法跨站读取（cookies 隔离），通过 `/curl-helper/` 工具获取：
 
@@ -242,14 +249,15 @@ GET /repos/{owner}/{repo}/actions/secrets/public-key
 配置页"登录方式"卡片内置一键获取入口（大按钮 + 三步引导）
 ```
 
-### 5.7 日历热力图
+### 5.8 运行日历（横向 GitHub 贡献图，v0.1.4）
 
 ```
 Calendar.vue 加载
   → listWorkflowRuns({ per_page: 365 })
-  → 按日期聚合 → 自绘 CSS grid（12 个月 × 天）
+  → 按日期聚合 → 横向贡献图：列 = 周（52 列），行 = 周一 ~ 周日（7 行）
       🟢 success 绿   🔴 failure 红   🔵 running 蓝   ⬜ 未运行灰
-  → 失败日期异步拉取 job 纯文本日志 → parseRunError 提取中文原因
+  → 顶部月份标签（仅在月份变化列显示）+ 左侧星期标注（一/三/五）+ 底部图例
+  → 点击格子 → 当日详情；失败日期异步拉取 job 纯文本日志 → parseRunError 提取中文原因
   → 统计：成功 / 失败 / 成功率
 ```
 
@@ -397,8 +405,8 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] 书签小工具 + 图文教程（curl-helper）
 - [x] 推送配置（wxpusher 默认 + pushplus/telegram/serverchan）
 - [x] 阅读时长分钟计数 + 快捷选择
-- [x] 立即运行 + 每日定时 + 停止/删除 + 15s 轮询
-- [x] 热力图展示 + 错误详情（job 纯文本日志解析）
+- [x] 立即运行（仪表盘直接触发）+ 每日定时（配置页 ScheduleCard；停止/删除随任务页移除）
+- [x] 运行日历（横向 GitHub 贡献图：列=周、行=周一~周日）+ 错误详情（job 纯文本日志解析）
 - [x] 接口状态面板（项目/微信读书/推送；v0.1.3 起以远程 Secrets 存在性检测，显示真实状态）
 - [x] 适配层 fallback 兼容机制（READ_NUM ↔ READ_MINUTES）
 - [x] 测试覆盖（44 单测 + 4 E2E，构建通过）
@@ -406,4 +414,5 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] 可选密码门（`VITE_PANEL_PASSWORD_HASH` 哈希注入，产物无明文；哈希生成脚本 `scripts/password-hash.mjs`）
 - [x] 线上保存配置验证通过（`verify-save.mjs` 回归脚本）+ 线上健康检查（`verify-health.mjs`）
 - [x] 记忆存储 + wxread 回读（配置持久化 localStorage；打开面板自动连接回读远程状态，仪表盘不误显"未配置"）
+- [x] v0.1.4 布局重构：内容区全宽、控制入口卡片移除、最近运行横向日期轴、配置 5 模块平铺、任务页并入配置（已部署并线上验证）
 - [ ] wxread 升级自诊断 banner（设计项，未实施）
