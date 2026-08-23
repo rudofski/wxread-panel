@@ -18,6 +18,12 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 2. 打开面板 → 登录页 → 粘贴 token → 使用 Token 登录
 3. Token 仅保存在浏览器 localStorage，退出登录即清除
 
+## 访问密码（可选）
+
+构建时配置 `VITE_PANEL_PASSWORD`（如 `echo VITE_PANEL_PASSWORD=xxx >> .env.local`，或部署时在构建环境注入）后，打开面板需先输入访问密码，24 小时内免重复输入。
+
+> 说明：前端密码校验可被绕过，仅防共用设备场景；真正的安全防线是 PAT token。
+
 ## 获取 WXREAD_CURL_BASH（约 30 秒）
 
 微信读书登录凭证 `WXREAD_CURL_BASH` 需从浏览器获取（cookies 无法跨站读取）。面板内置 curl-helper 工具，三种方式任选：
@@ -47,7 +53,7 @@ npm install
 npm run dev   # http://localhost:3000
 ```
 
-无需任何环境变量。
+无需任何环境变量（访问密码等可选项见 `.env.example`）。
 
 ## 测试
 
