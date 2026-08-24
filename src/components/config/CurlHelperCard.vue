@@ -2,7 +2,7 @@
   <div class="card"><div class="card-title">📋 一键获取 curl_bash</div>
     <p class="desc">获取微信读书登录凭证（curl_bash），<b>Chrome 扩展最省心</b>（可读取 HttpOnly 凭证，一键生成）：</p>
     <ol class="steps">
-      <li>下载 <a href="https://github.com/rudofski/wxread-panel/tree/master/chrome-extension" target="_blank">chrome-extension 目录 ↗</a>，在 <code>chrome://extensions</code> 开发者模式「加载已解压的扩展程序」</li>
+      <li>打开<a :href="helperUrl" target="_blank">获取工具页 ↗</a> 下载扩展 ZIP 并解压，在 <code>chrome://extensions</code> 开发者模式「加载已解压的扩展程序」</li>
       <li>打开微信读书阅读页并<b>翻一页</b>，点击工具栏 🎣 图标 → 自动生成完整 curl_bash → 复制</li>
       <li>粘贴到「微信读书接口」输入框并保存</li>
     </ol>
