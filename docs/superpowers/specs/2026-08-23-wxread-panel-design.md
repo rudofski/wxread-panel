@@ -1,15 +1,16 @@
 # wxread-panel 扩展辅助工程设计文档
 
-> 版本：v0.1.6  \
+> 版本：v0.1.7  \
 > 日期：2026-08-23  \
-> 对应提交：`efd2fb9`  \
+> 对应提交：`518d251`  \
 > 关联仓库：[rudofski/wxread](https://github.com/rudofski/wxread/)  \
 > v0.1.1 变更：移除书城搜索与 Cloudflare Worker 代理；认证改为纯 PAT；热力图改自绘实现  \
 > v0.1.2 变更：Secrets 加密根因修复（tweetnacl 随机 nonce → libsodium `crypto_box_seal`）；新增可选密码门；线上保存配置验证通过（422 错误消失）  \
 > v0.1.3 变更：**记忆存储 + wxread 回读**（配置持久化 localStorage，打开面板自动连接回读远程状态）；密码门哈希化（`VITE_PANEL_PASSWORD` → `VITE_PANEL_PASSWORD_HASH`，修复明文内联缺陷）；curl_bash 保存根因修复 + 仪表盘远程 Secrets 存在性检测；新增密码哈希脚本与线上健康检查脚本  \
 > v0.1.4 变更：**UI 布局重构**——内容区全宽（保留侧边栏）；仪表盘移除控制入口卡片、最近运行改横向日期轴、立即运行直接触发；删除任务管理页（定时任务并入配置页）；配置 5 模块网格平铺；运行日历改横向 GitHub 贡献图风格  \
 > v0.1.5 变更：**书签小工具根因修复**——hook fetch/XHR 捕获真实阅读上报请求（补齐 `x-wrpa-0` 签名头、`--data-raw` 请求体与 content-type，旧版仅抓 document.cookie 导致提取的 curl 无法上报）；新增 `scripts/build-bookmarklet.mjs`（esbuild 压缩同步）与 `src/utils/curlBuilder.ts`（TDD，后续扩展至 11 测试）；**UI 微调**——仪表盘改"运行状态"、运行记录只留红绿圆点+阅读时长并铺满、日历每日标记改用最新记录并去"少-多"图例、配置页保存按钮移右上角、"登录方式"改名"微信读书接口"、curl_bash 引导拆为独立模块置于定时任务后  \
-> v0.1.6 变更：**运行日历重写**——每月独立网格（1 号居首格、顺序填充、绝不跨月，替代按周切列导致的串月）；CSS Grid 按总列数均分容器宽度，格子统一大小铺满显示区域；状态语义"最新运行非失败即绿"（含 cancelled/skipped 等）；新增 `src/utils/calendarGrid.ts` 纯函数（TDD 6 测试），测试计数 50 → **61**
+> v0.1.6 变更：**运行日历重写**——每月独立网格（1 号居首格、顺序填充、绝不跨月，替代按周切列导致的串月）；CSS Grid 按总列数均分容器宽度，格子统一大小铺满显示区域；状态语义"最新运行非失败即绿"（含 cancelled/skipped 等）；新增 `src/utils/calendarGrid.ts` 纯函数（TDD 6 测试），测试计数 50 → **61**  \
+> v0.1.7 变更：**状态四档统一 + 本地时区归组 + 版本同步机制**——新增 `classifyRun` 统一分类（success=绿 / failure=红 / running=蓝 / idle=灰），运行状态圆点与运行日历格子共用同一判定，两处状态完全同步（含日历新增蓝/灰格子与图例）；日历 dayMap/详情改用本地时区 `localDateKey`（与最近运行同源）；最近运行横轴按本地时区归组（修复凌晨运行串日）并按窗口宽度响应天数；版本号三处同步机制（`scripts/bump-version.mjs` 一键升级 package.json/lock/deploy.sh），测试计数 61 → **73**
 
 ---
 
@@ -27,13 +28,15 @@
 | 2 | 登录凭证获取 | **独立本地 HTML 工具**（书签小工具 + 图文教程，`/curl-helper/`）；v0.1.5 书签改为 **hook fetch/XHR 捕获真实阅读请求**（补齐 x-wrpa-0 签名头、--data-raw 请求体、content-type，旧版仅 document.cookie 无法上报） |
 | 3 | 认证方式 | **Personal Access Token（纯 PAT）**——GitHub Pages 纯前端无法安全完成 OAuth code 交换 |
 | 4 | 刷时长执行 | **触发 GitHub Actions**（`workflow_dispatch`） |
-| 5 | 日历图表 | **自绘热力图**（轻量 CSS grid，替代 Cal-Heatmap 依赖）；v0.1.6 改为**每月独立网格**：1 号居首格、顺序填充不跨月；CSS Grid 按总列数均分铺满 |
+| 5 | 日历图表 | **自绘热力图**（轻量 CSS grid，替代 Cal-Heatmap 依赖）；v0.1.6 改为**每月独立网格**：1 号居首格、顺序填充不跨月；CSS Grid 按总列数均分铺满；v0.1.7 状态**四档统一**（success=绿 / failure=红 / running=蓝脉冲 / idle=灰） |
 | 6 | 项目接口 | **输入仓库地址，通过 GitHub API 读写 Secrets/Variables** |
 | 7 | 推送配置 | **面板配置 → GitHub Secrets → Actions 运行时推送** |
 | 8 | 技术栈 | **Vue 3 + Vite + TypeScript + Octokit + libsodium-wrappers** |
 | 9 | 书城搜索 | **已移除**（v0.1.0 曾引入；weread 搜索接口无 CORS 头，GitHub Pages 线上不可用，公共代理在国内不可达，故 v0.1.1 下线） |
 | 10 | 访问密码 | **可选密码门**（构建变量 `VITE_PANEL_PASSWORD_HASH`=密码的 SHA-256 hex；v0.1.3 由明文 `VITE_PANEL_PASSWORD` 改为哈希，修复 Vite 内联明文缺陷；24h 解锁；防共用设备场景） |
 | 11 | 记忆存储与回读 | **配置持久化 localStorage + 打开面板自动连接回读远程真实状态**（v0.1.3）——刷新/重开不丢配置，仪表盘显示真实远程状态而非"未配置" |
+| 12 | 运行状态语义 | **单一事实来源 `classifyRun`**（v0.1.7）——运行状态圆点与运行日历格子共用同一四档分类（running/success/failure/idle），杜绝两处状态漂移；日期归组统一本地时区 `localDateKey` |
+| 13 | 版本号管理 | **`package.json` 单一事实来源 + `scripts/bump-version.mjs` 一键三处同步**（v0.1.7）——界面从 package.json 读取；bump 脚本同步 package.json / package-lock.json / deploy.sh 标签，杜绝版本号漂移复发 |
 
 ---
 
@@ -78,6 +81,7 @@
 - **隔离部署**：独立仓库 `wxread-panel`，不混入 wxread
 - **零后端依赖**：无 OAuth 代理、无 Worker、无任何服务端（v0.1.1 起）
 - **记忆优先**：配置本地持久化，打开面板自动回读远程状态，减少重复操作（v0.1.3）
+- **状态单一来源**：运行状态分类统一走 `classifyRun`、日期归组统一本地时区（v0.1.7）——任何展示层（圆点/日历/详情）不各自实现判定逻辑，从源头杜绝状态漂移
 
 ---
 
@@ -113,7 +117,8 @@ wxread-panel/
 │       └── bookmarklet.js       #   书签小工具源码（hook fetch/XHR 捕获真实阅读请求，v0.1.5）
 ├── scripts/
 │   ├── password-hash.mjs        # 生成密码门哈希（静默输入/环境变量，防泄漏）
-│   └── build-bookmarklet.mjs    # esbuild 压缩 bookmarklet 并同步 index.html（v0.1.5）
+│   ├── build-bookmarklet.mjs    # esbuild 压缩 bookmarklet 并同步 index.html（v0.1.5）
+│   └── bump-version.mjs         # 一键升级版本号（package.json/lock/deploy.sh 三处同步，v0.1.7）
 ├── src/
 │   ├── main.ts                  # 入口
 │   ├── App.vue                  # 根组件：锁屏/侧边栏/路由视图 + 挂载时自动回读远程状态
@@ -128,7 +133,9 @@ wxread-panel/
 │   │   ├── sealedBox.ts         # libsodium 密封盒加密（crypto_box_seal）
 │   │   ├── panelLock.ts         # 可选密码门（哈希校验 + 24h 解锁态）
 │   │   ├── curlBuilder.ts       # 捕获请求 → 完整 curl 命令（书签内联版的可测试参照，v0.1.5）
-│   │   └── calendarGrid.ts      # 运行日历网格纯函数（每月独立网格、1 号居首格，v0.1.6）
+│   │   ├── calendarGrid.ts      # 运行日历网格纯函数（每月独立网格、1 号居首格，v0.1.6）
+│   │   ├── runStatus.ts         # 运行状态统一分类（success/failure/running/idle，v0.1.7）
+│   │   └── runGrouping.ts       # 最近运行按本地时区归组 + 响应式天数（v0.1.7）
 │   ├── components/
 │   │   ├── LockScreen.vue       # 密码门解锁界面（可选）
 │   │   ├── Sidebar.vue
@@ -153,6 +160,8 @@ wxread-panel/
 │   ├── utils/panelLock.test.ts  # 密码门（启用/校验/解锁态）6
 │   ├── utils/curlBuilder.test.ts# curl 构建（headers/cookie/body/转义/URL 补全/浏览器头）11（v0.1.5）
 │   ├── utils/calendarGrid.test.ts# 日历网格（1 号居首格/不跨月/列数/状态/未来）6（v0.1.6）
+│   ├── utils/runGrouping.test.ts# 本地时区归组/响应式天数/跨天边界 7（v0.1.7）
+│   ├── utils/runStatus.test.ts  # 状态四档分类 5（v0.1.7）
 │   └── e2e/smoke.spec.ts        # Playwright 冒烟 4
 ├── index.html
 ├── deploy.sh                    # 一键推送脚本
@@ -183,7 +192,8 @@ wxread-panel/
 ### 5.2 布局与信息架构（v0.1.4，v0.1.5 微调）
 
 - **全宽内容区**：保留左侧固定导航（仪表盘/配置参数/运行日历），各页面移除 `max-width` 限制，内容撑满剩余宽度
-- **仪表盘（v0.1.5 改名"运行状态"）**：移除"控制入口"卡片；最近运行以**日期为横轴**（最近 14 天，左早右近），每日一列、列内竖向排列该日多条记录，列容器 `flex:1` 横向铺满；每条记录**只显示红绿圆点图标**（绿=成功/红=失败/蓝脉冲=运行中）+ 时间 + **阅读时长**（运行耗时 updated_at − run_started_at），不显示项目名与状态文字
+- **仪表盘（v0.1.5 改名"运行状态"）**：移除"控制入口"卡片；最近运行以**日期为横轴**（左早右近），每日一列、列内竖向排列该日多条记录，列容器 `flex:1` 横向铺满；每条记录**只显示圆点状态图标**（绿=成功/红=失败/蓝脉冲=运行中/灰=取消·跳过·超时）+ 时间 + **阅读时长**（运行耗时 updated_at − run_started_at），不显示项目名与状态文字
+- **日期归组与响应式（v0.1.7）**：日期 key 与时间显示**同源（本地时区）**，修复凌晨运行（UTC 深夜 = 本地次日凌晨）被归到前一天的问题；横轴天数随窗口宽度响应（<900px 取 7 天 / <1280px 取 10 天 / 其余 14 天），窄屏时列 `min-width` + 横向滚动，最新日期永不截断
 - **配置页（v0.1.5）**：6 模块网格平铺（项目接口/微信读书接口/推送接口/阅读设置/定时任务/一键获取 curl_bash）；保存按钮移至**页面右上角**（与标题同行）；卡片 padding/间距收紧使全部模块一屏可见
 - **任务管理移除**：Tasks 页/路由/导航删除，定时任务并入配置页（ScheduleCard）
 
@@ -266,17 +276,18 @@ GET /repos/{owner}/{repo}/actions/secrets/public-key
   → 浮层展示 + 自动复制到剪贴板
 ```
 
-- 构建逻辑沉淀为 `src/utils/curlBuilder.ts`（纯函数，TDD 6 测试），bookmarklet 内联等价实现（书签需自包含）
+- 构建逻辑沉淀为 `src/utils/curlBuilder.ts`（纯函数，TDD 11 测试，含 resolveUrl/browserHeaders），bookmarklet 内联等价实现（书签需自包含）
 - 压缩版由 `scripts/build-bookmarklet.mjs`（esbuild minify）生成并同步 index.html
 - **已知边界**：浏览器不向 JS 暴露 HttpOnly cookie（如 `wr_skey`），若生成 curl 仍报错请用 F12 方式（工具内已提示）
 
-### 5.8 运行日历（每月独立网格，v0.1.6 重写）
+### 5.8 运行日历（每月独立网格，v0.1.6 重写；状态四档统一，v0.1.7）
 
 ```
 Calendar.vue 加载
   → listWorkflowRuns({ per_page: 365 })
-  → dayMap：每日取**最新一条**运行记录（runs 倒序，首个命中即最新）
-      结论 = failure → 红；其余（success/cancelled/skipped/timed_out/运行中）一律 → 绿（"最新运行非失败即绿"）
+  → dayMap：每日取**最新一条**运行记录（runs 倒序，首个命中即最新；本地时区 localDateKey 归日）
+      状态 = classifyRun(最新一条)：success → 绿 / failure → 红 / running → 蓝脉冲 / idle(取消·跳过·超时) → 灰
+      （v0.1.7：与运行状态圆点同一判定函数，两处完全同步）
   → buildMonthBlocks(year, dayMap, now) 纯函数生成 12 个月独立网格：
       每月从 1 号开始顺序填充、每列 7 格、列满换列、月底不满补 blank 空格子
       → 1 号永远在该月第一个格子，日期绝不跨月（替代 v0.1.4 按周切列导致的串月）
@@ -288,8 +299,9 @@ Calendar.vue 加载
 ```
 
 - **布局语义**（v0.1.6）：不按万年历的星期对齐，每月 1 号固定位于该月第一个格子，纯顺序填充；每列 7 格（列 = 周概念，但不对应星期几），12 个月块横排，总列数（2026 年为 59）由 `--total-cols` CSS 变量传入 Grid
-- **状态语义**（v0.1.6）：格子颜色只取决于**当日最新一条**运行——不是 failure 即绿色（含 cancelled/skipped/timed_out/运行中），避免"当日最早一条"或 conclusion=null 记录回退导致的误判
-- 网格生成逻辑沉淀为 `src/utils/calendarGrid.ts`（纯函数，TDD 6 测试）
+- **状态语义**（v0.1.6）：格子颜色只取决于**当日最新一条**运行，避免"当日最早一条"或 conclusion=null 记录回退导致的误判
+- **状态同步**（v0.1.7）：状态判定收敛到 `classifyRun`（success=绿 / failure=红 / running=蓝脉冲 / idle=灰）——与运行状态圆点共用同一函数；图例同步 5 项（无记录/成功/失败/运行中/已取消）。历史语义"非失败即绿"（v0.1.6）把 cancelled/skipped/timed_out 也显示为绿，与 Dashboard 灰点不一致，v0.1.7 修正为四档
+- 网格生成逻辑沉淀为 `src/utils/calendarGrid.ts`（纯函数，TDD 6 测试）；状态分类 `src/utils/runStatus.ts`（TDD 5 测试）；日期归组 `src/utils/runGrouping.ts`（TDD 7 测试）
 
 ---
 
@@ -374,14 +386,14 @@ const wxreadAdapter = {
 
 | 层 | 范围 | 工具 | 数量 |
 |----|------|------|------|
-| 纯函数单测 | URL/错误解析（6）+ 定时设置（6）+ curl 构建（11）+ 日历网格（6） | Vitest | 29 |
+| 纯函数单测 | URL/错误解析（6）+ 定时设置（6）+ curl 构建（11）+ 日历网格（6）+ 本地时区归组（7）+ 状态分类（5） | Vitest | 41 |
 | Mock API 交互 | detectRepo / variable / dispatch / 适配层 / 日志拉取 / secretExists | Vitest + vi.mock | 10 |
 | Store 测试 | auth 登录态（5）、settings 配置状态 + 持久化 roundtrip（7） | Vitest + Pinia | 12 |
 | 加密测试 | sealed box 与 libsodium 互操作（模拟 GitHub 服务器） | Vitest | 4 |
 | 密码门测试 | 启用/禁用、哈希校验、24h 解锁态 | Vitest | 6 |
 | E2E 冒烟 | 登录跳转 / token 输入 / 无 OAuth 按钮 | Playwright | 4 |
 
-合计 **61** 个单元测试 + 4 个 E2E（v0.1.5 起 curl 构建扩展至 11：含 resolveUrl 相对 URL 补全、browserHeaders 浏览器自动头；v0.1.6 新增日历网格 6 个）。组件层未单独引入测试框架（`@vue/test-utils` 未使用），组件行为由 E2E 冒烟覆盖。
+合计 **73** 个单元测试 + 4 个 E2E（v0.1.5 起 curl 构建扩展至 11：含 resolveUrl 相对 URL 补全、browserHeaders 浏览器自动头；v0.1.6 新增日历网格 6 个；v0.1.7 新增本地时区归组 7 个 + 状态分类 5 个）。组件层未单独引入测试框架（`@vue/test-utils` 未使用），组件行为由 E2E 冒烟覆盖。
 
 ### 9.2 关键测试用例
 
@@ -389,7 +401,9 @@ const wxreadAdapter = {
 - 错误解析：Cookie 过期、推送失败、网络超时 → 对应中文提示
 - 加密：**libsodium 能解封我们的密文**（GitHub 服务器等效）、非 ASCII 内容往返、密文随机性
 - **curl 构建（v0.1.5）**：headers 归一化与无效头过滤、cookie 兜底、content-type/origin/referer/user-agent 自动补齐、含引号/中文值转义、body 追加 `--data-raw`、resolveUrl 相对 URL 补全、browserHeaders 浏览器自动头（sec-ch-ua/sec-fetch-* 等）
-- **日历网格（v0.1.6）**：每月 1 号位于该月第一个格子、所有格子不跨月（空格子标记 blank）、2 月 28 天列数与补空正确、非失败即绿状态映射、未来/过去标记、总列数 59
+- **日历网格（v0.1.6）**：每月 1 号位于该月第一个格子、所有格子不跨月（空格子标记 blank）、2 月 28 天列数与补空正确、状态映射、未来/过去标记、总列数 59
+- **本地时区归组（v0.1.7）**：日期 key 与本地时区格式化一致（与 formatTime 同源）、UTC 深夜运行归入本地次日（跨天边界）、横轴左早右近、组内显式按时间正序（不依赖 API 顺序）、空日占位、run_started_at 优先、响应式天数阈值（7/10/14）
+- **状态分类（v0.1.7）**：in_progress → running（优先于结论）、success/failure 映射、cancelled/skipped/timed_out/neutral/null → idle（灰）
 - 密码门：未配置不启用、正确/错误密码、未启用放行、24h 过期
 - **持久化（v0.1.3）**：修改字段 → 重新创建 store 恢复（记忆存储 roundtrip）；无数据用默认值；损坏 JSON 安全回退
 - E2E：未登录跳转登录页、PAT 输入框、无 OAuth 按钮、创建 Token 引导链接
@@ -423,7 +437,8 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 | **保存配置（真实 PAT 实测）** | ✅ 成功，422 加密错误消失（占位 curl_bash 验证加密链路） |
 | **v0.1.5 新 UI（线上 chunk 实测）** | ✅ 运行状态/最近运行/run-dot、配置参数/微信读书接口/一键获取 curl_bash 独立模块、日历"少-多"已移除（出现 0 次）、has() 最新记录逻辑在线 |
 | **v0.1.5 书签工具（线上实测）** | ✅ curl-helper 内嵌新压缩书签（6.9KB），文案"翻一页 → 自动捕获（含 x-wrpa-0 签名头与请求体）"在线 |
-| **v0.1.6 运行日历重写（推送部署中）** | ⏳ 已推送 `efd2fb9`（每月独立网格 + CSS Grid 均分铺满），部署完成后待线上验证 |
+| **v0.1.6 运行日历重写** | ✅ 已部署（`efd2fb9`），线上实测：JS chunk 含 `month-group`/月份判断、CSS chunk 含 `.month-group+.month-group{margin-left:10px}` 组间间隔、`.contrib-cell{aspect-ratio:1/1}` 铺满、绿/红状态色与"最新一条"逻辑在线 |
+| **v0.1.7 状态同步 + 版本统一（推送部署中）** | ⏳ 已推送 `518d251`（classifyRun 四档 + 日历蓝/灰格子 + 本地时区归组 + 版本 0.1.7），部署完成后待线上验证 |
 
 线上验证工具：
 - `verify-health.mjs` — 免 token 健康检查（入口/登录/守卫/curl-helper/bundle/favicon，任一失败退出码非 0）
@@ -444,7 +459,7 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] 运行日历（横向 GitHub 贡献图：列=周、行=周一~周日）+ 错误详情（job 纯文本日志解析）
 - [x] 接口状态面板（项目/微信读书/推送；v0.1.3 起以远程 Secrets 存在性检测，显示真实状态）
 - [x] 适配层 fallback 兼容机制（READ_NUM ↔ READ_MINUTES）
-- [x] 测试覆盖（61 单测 + 4 E2E，构建通过）
+- [x] 测试覆盖（73 单测 + 4 E2E，构建通过）
 - [x] Secrets 加密与 GitHub 服务器互操作（libsodium `crypto_box_seal`，线上保存 422 已修复）
 - [x] 可选密码门（`VITE_PANEL_PASSWORD_HASH` 哈希注入，产物无明文；哈希生成脚本 `scripts/password-hash.mjs`）
 - [x] 线上保存配置验证通过（`verify-save.mjs` 回归脚本）+ 线上健康检查（`verify-health.mjs`）
@@ -452,5 +467,8 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] v0.1.4 布局重构：内容区全宽、控制入口卡片移除、最近运行横向日期轴、配置 5 模块平铺、任务页并入配置（已部署并线上验证）
 - [x] v0.1.5 书签小工具 hook 捕获修复（x-wrpa-0 签名头 + 请求体 + content-type；`curlBuilder.ts` TDD 6 测试；esbuild 压缩脚本）——已部署并线上验证
 - [x] v0.1.5 UI 微调：仪表盘"运行状态"+圆点/阅读时长/铺满、日历每日最新记录+去"少-多"、配置页保存右上角+"微信读书接口"+curl_bash 独立模块（已部署并线上验证）
-- [x] v0.1.6 运行日历重写：每月独立网格（1 号居首格、不跨月）、CSS Grid 均分铺满、最新运行非失败即绿（`calendarGrid.ts` TDD 6 测试，单测 61 + E2E 4）——已推送部署
+- [x] v0.1.6 运行日历重写：每月独立网格（1 号居首格、不跨月）、CSS Grid 均分铺满、最新运行非失败即绿（`calendarGrid.ts` TDD 6 测试）——已部署并线上验证
+- [x] v0.1.7 运行状态统一：`classifyRun` 四档分类（success/failure/running/idle）运行状态圆点与日历格子共用，日历新增蓝/灰格子与图例，状态完全同步（`runStatus.ts` TDD 5 测试）——已推送部署
+- [x] v0.1.7 最近运行本地时区归组 + 响应式天数（`runGrouping.ts` TDD 7 测试，修复凌晨运行串日、窄屏最新日期截断）——已推送部署
+- [x] v0.1.7 版本号同步机制：package.json 单一事实来源 + `scripts/bump-version.mjs` 一键三处同步（package.json/lock/deploy.sh），版本 0.1.7，单测 73 + E2E 4——已推送部署
 - [ ] wxread 升级自诊断 banner（设计项，未实施）
