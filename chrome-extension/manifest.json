@@ -7,7 +7,6 @@
   "host_permissions": ["https://weread.qq.com/*", "https://qq.com/*", "https://*.qq.com/*"],
   "background": { "service_worker": "background.js" },
   "action": {
-    "default_popup": "popup.html",
     "default_title": "wxread curl_bash 获取器"
   },
   "content_scripts": [

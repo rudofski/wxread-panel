@@ -7,6 +7,7 @@
 //   Cookie 头（含 HttpOnly），与 F12 显示/复制的 curl **严格同源**（同一请求）。
 // 另修复：content 捕获的 url 是相对路径（'/web/book/read'），
 //   生成的 curl 无 scheme/host 无法执行——补 resolveUrl 转绝对 URL。
+// v0.1.10：点击扩展图标打开常驻独立窗口（不随点击外部消失），替代默认 popup。
 
 // 需要被验证存在的关键 HttpOnly 登录凭证
 const READ_COOKIE_KEYS = ['wr_vid', 'wr_skey', 'wr_rt', 'wr_ql', 'wr_localvid', 'wr_name', 'wr_avatar', 'wr_gender'];
@@ -128,3 +129,29 @@ function buildCurl({ url, headers, body }) {
   if (body) lines.push('  --data-raw ' + q(body));
   return lines.join('\n');
 }
+
+// ============ 常驻独立窗口（替代默认 popup，不随点击外部消失） ============
+const WIN_KEY = 'panelWinId';
+const PANEL_URL = 'panel.html';
+const W = 480, H = 520;
+
+chrome.action.onClicked.addListener(async () => {
+  const { [WIN_KEY]: winId } = await chrome.storage.local.get(WIN_KEY);
+  if (winId) {
+    try {
+      await chrome.windows.get(winId);
+      await chrome.windows.update(winId, { focused: true, state: 'normal' });
+      return;
+    } catch (e) { /* 窗口已关闭，重新创建 */ }
+  }
+  const win = await chrome.windows.create({
+    url: PANEL_URL, type: 'popup', width: W, height: H, focused: true,
+  });
+  await chrome.storage.local.set({ [WIN_KEY]: win.id });
+  chrome.windows.onRemoved.addListener(function onRemoved(closedId) {
+    if (closedId === win.id) {
+      chrome.storage.local.remove(WIN_KEY);
+      chrome.windows.onRemoved.removeListener(onRemoved);
+    }
+  });
+});
