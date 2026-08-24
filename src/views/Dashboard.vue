@@ -40,9 +40,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { dispatchWorkflow, listWorkflowRuns, type RunInfo } from '@/api/github';
+import { groupRunsByLocalDay, daysForWidth } from '@/utils/runGrouping';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
@@ -72,26 +73,12 @@ const pushStatusText = computed(() => {
   return '未配置，请到配置页设置';
 });
 
-// 最近运行：以日期为横轴（最近 DAYS 天，左早右近），每日内竖向排列多条记录
-const DAYS = 14;
-const dateAxis = computed(() => {
-  const map = new Map<string, RunInfo[]>();
-  for (const run of runs.value) {
-    const d = (run.run_started_at || run.created_at).slice(0, 10);
-    if (!map.has(d)) map.set(d, []);
-    map.get(d)!.push(run);
-  }
-  const days: { date: string; label: string; runs: RunInfo[] }[] = [];
-  const today = new Date();
-  for (let i = DAYS - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const dayRuns = (map.get(dateStr) || []).slice().reverse();
-    days.push({ date: dateStr, label: `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, runs: dayRuns });
-  }
-  return days;
-});
+// 最近运行：以日期为横轴（左早右近），每日内竖向排列多条记录。
+// v0.1.7：日期按【本地时区】归组（与时间显示同源，修复凌晨运行串日）；
+// 天数随窗口宽度响应（窄屏 7 天 / 中屏 10 天 / 宽屏 14 天），保证最新日期完整显示。
+const DAYS = ref(daysForWidth(window.innerWidth));
+function onResize() { DAYS.value = daysForWidth(window.innerWidth); }
+const dateAxis = computed(() => groupRunsByLocalDay(runs.value, DAYS.value));
 
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -133,17 +120,21 @@ async function runNow() {
   } finally { running.value = false; }
 }
 
-onMounted(() => { loadRecentRuns(); });
+onMounted(() => {
+  loadRecentRuns();
+  window.addEventListener('resize', onResize);
+});
+onUnmounted(() => { window.removeEventListener('resize', onResize); });
 </script>
 
 <style scoped>
 .dashboard { max-width: 100%; }
 .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-/* 14 天横向铺满整个显示区域 */
-.runs-axis { display: flex; gap: 8px; }
-.run-day { flex: 1 1 0; min-width: 0; border-radius: 6px; background: #f9f9f9; padding: 8px; }
-.run-day-label { text-align: center; font-size: 12px; color: var(--color-text-light); padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; }
+/* 横向铺满；窄屏时横向滚动兜底，每列保证可读（最新日期不截断） */
+.runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+.run-day { flex: 1 1 0; min-width: 78px; border-radius: 6px; background: #f9f9f9; padding: 8px; }
+.run-day-label { text-align: center; font-size: 12px; color: var(--color-text-light); padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; white-space: nowrap; }
 .run-day-body { display: flex; flex-direction: column; gap: 6px; min-height: 24px; }
 .run-item { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
