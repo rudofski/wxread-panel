@@ -1,12 +1,12 @@
 <template>
   <div class="card"><div class="card-title">📋 一键获取 curl_bash</div>
-    <p class="desc">获取微信读书登录凭证（curl_bash），<b>F12 方式最可靠</b>（含完整登录凭证）：</p>
+    <p class="desc">获取微信读书登录凭证（curl_bash），<b>Chrome 扩展最省心</b>（可读取 HttpOnly 凭证，一键生成）：</p>
     <ol class="steps">
-      <li>打开 <a href="https://weread.qq.com/" target="_blank">微信读书网页版 ↗</a> 并扫码登录，进入任意一本书的阅读页</li>
-      <li>按 <b>F12</b> → Network 标签 → 过滤框输入 <code>read</code> → 翻一页</li>
-      <li>右键 <code>read</code> 请求 → <b>Copy → Copy as cURL (bash)</b>，粘贴到「微信读书接口」输入框并保存</li>
+      <li>下载 <a href="https://github.com/rudofski/wxread-panel/tree/master/chrome-extension" target="_blank">chrome-extension 目录 ↗</a>，在 <code>chrome://extensions</code> 开发者模式「加载已解压的扩展程序」</li>
+      <li>打开微信读书阅读页并<b>翻一页</b>，点击工具栏 🎣 图标 → 自动生成完整 curl_bash → 复制</li>
+      <li>粘贴到「微信读书接口」输入框并保存</li>
     </ol>
-    <a class="btn btn-primary btn-lg btn-block" :href="helperUrl" target="_blank">📋 打开获取工具（含书签/F12 图文） ↗</a>
+    <a class="btn btn-primary btn-lg btn-block" :href="helperUrl" target="_blank">📋 打开获取工具（扩展安装图文） ↗</a>
   </div>
 </template>
 <script setup lang="ts">
