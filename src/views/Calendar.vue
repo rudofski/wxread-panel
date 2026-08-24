@@ -15,13 +15,6 @@
               </div>
             </div>
           </div>
-          <div class="legend">
-            <span class="legend-cell cell-empty"></span><span>无记录</span>
-            <span class="legend-cell cell-success"></span><span>成功</span>
-            <span class="legend-cell cell-failure"></span><span>失败</span>
-            <span class="legend-cell cell-running"></span><span>运行中</span>
-            <span class="legend-cell cell-idle"></span><span>已取消</span>
-          </div>
         </div>
       </div>
     </div>
@@ -49,7 +42,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { listWorkflowRuns, parseRunError, getRunLogs, type RunInfo } from '@/api/github';
 import { buildMonthBlocks, type CalendarMonthBlock, type DayStatus } from '@/utils/calendarGrid';
-import { classifyRun } from '@/utils/runStatus';
+import { classifyRun, pickDayStatus } from '@/utils/runStatus';
 import { localDateKey } from '@/utils/runGrouping';
 
 const settings = useSettingsStore();
@@ -60,15 +53,20 @@ const errorCache = ref<Map<number, string>>(new Map());
 
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
-// 每日最新一条运行状态（runs 倒序，首个命中即最新），
-// 状态分类与 Dashboard 完全一致：success=绿 / failure=红 / running=蓝 / idle=灰（v0.1.7）
+// 每日运行状态（v0.1.8）：**成功优先**——当日只要有任意一条成功即显示成功；
+// 无任何成功时取时间最新的一条。状态分类与 Dashboard 一致：success=绿 / failure=红 / running=蓝 / idle=灰
 const dayMap = computed(() => {
-  const map = new Map<string, DayStatus>();
+  const byDay = new Map<string, RunInfo[]>();
   for (const run of runs.value) {
     const date = localDateKey(run.run_started_at || run.created_at);
-    if (map.has(date)) continue;
-    const s = classifyRun(run);
-    map.set(date, s === 'failure' ? { s, note: errorCache.value.get(run.id) || '运行失败' } : { s });
+    if (!byDay.has(date)) byDay.set(date, []);
+    byDay.get(date)!.push(run);
+  }
+  const map = new Map<string, DayStatus>();
+  for (const [date, dayRuns] of byDay) {
+    const win = pickDayStatus(dayRuns)!;
+    const s = classifyRun(win);
+    map.set(date, s === 'failure' ? { s, note: errorCache.value.get(win.id) || '运行失败' } : { s });
   }
   return map;
 });
@@ -107,12 +105,13 @@ const statusClass = computed(() => {
 
 function showDetail(dateStr: string) {
   selectedDate.value = dateStr;
-  // 取当日最新一条运行记录（与 dayMap 同源：本地时区 key）
-  const latest = runs.value.find(r => localDateKey(r.run_started_at || r.created_at) === dateStr);
-  if (!latest) { selectedDetail.value = null; return; }
-  const s = classifyRun(latest);
+  // 取当日运行记录，与 dayMap 同一策略：成功优先，无成功取最新（本地时区 key）
+  const dayRuns = runs.value.filter(r => localDateKey(r.run_started_at || r.created_at) === dateStr);
+  const win = pickDayStatus(dayRuns);
+  if (!win) { selectedDetail.value = null; return; }
+  const s = classifyRun(win);
   if (s === 'failure') {
-    selectedDetail.value = { status: 'failure', error: errorCache.value.get(latest.id) || '运行失败' };
+    selectedDetail.value = { status: 'failure', error: errorCache.value.get(win.id) || '运行失败' };
   } else {
     selectedDetail.value = { status: s };
   }
@@ -156,9 +155,6 @@ onMounted(loadData);
 .cell-empty { background: #ebedf0; cursor: pointer; }
 .cell-future { background: transparent; border: 1px solid #ebedf0; }
 .cell-blank { background: transparent; }
-.legend { display: flex; align-items: center; gap: 4px; margin-top: 10px; font-size: 11px; color: var(--color-text-light); }
-.legend-cell { width: 14px; height: 14px; border-radius: 3px; margin-left: 8px; }
-.legend-cell:first-child { margin-left: 0; }
 .text-ok { color: var(--color-success); }
 .text-running { color: var(--color-primary); }
 .text-idle { color: #9aa0a6; }
