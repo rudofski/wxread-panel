@@ -1,8 +1,8 @@
 # wxread-panel 扩展辅助工程设计文档
 
-> 版本：v0.1.8  \
-> 日期：2026-08-23  \
-> 对应提交：`4fd2305`  \
+> 版本：v0.1.12  \
+> 日期：2026-08-24  \
+> 对应提交：`645f221`  \
 > 关联仓库：[rudofski/wxread](https://github.com/rudofski/wxread/)  \
 > v0.1.1 变更：移除书城搜索与 Cloudflare Worker 代理；认证改为纯 PAT；热力图改自绘实现  \
 > v0.1.2 变更：Secrets 加密根因修复（tweetnacl 随机 nonce → libsodium `crypto_box_seal`）；新增可选密码门；线上保存配置验证通过（422 错误消失）  \
@@ -11,7 +11,11 @@
 > v0.1.5 变更：**书签小工具根因修复**——hook fetch/XHR 捕获真实阅读上报请求（补齐 `x-wrpa-0` 签名头、`--data-raw` 请求体与 content-type，旧版仅抓 document.cookie 导致提取的 curl 无法上报）；新增 `scripts/build-bookmarklet.mjs`（esbuild 压缩同步）与 `src/utils/curlBuilder.ts`（TDD，后续扩展至 11 测试）；**UI 微调**——仪表盘改"运行状态"、运行记录只留红绿圆点+阅读时长并铺满、日历每日标记改用最新记录并去"少-多"图例、配置页保存按钮移右上角、"登录方式"改名"微信读书接口"、curl_bash 引导拆为独立模块置于定时任务后  \
 > v0.1.6 变更：**运行日历重写**——每月独立网格（1 号居首格、顺序填充、绝不跨月，替代按周切列导致的串月）；CSS Grid 按总列数均分容器宽度，格子统一大小铺满显示区域；状态语义"最新运行非失败即绿"（含 cancelled/skipped 等）；新增 `src/utils/calendarGrid.ts` 纯函数（TDD 6 测试），测试计数 50 → **61**  \
 > v0.1.7 变更：**状态四档统一 + 本地时区归组 + 版本同步机制**——新增 `classifyRun` 统一分类（success=绿 / failure=红 / running=蓝 / idle=灰），运行状态圆点与运行日历格子共用同一判定，两处状态完全同步（含日历新增蓝/灰格子与图例）；日历 dayMap/详情改用本地时区 `localDateKey`（与最近运行同源）；最近运行横轴按本地时区归组（修复凌晨运行串日）并按窗口宽度响应天数；版本号三处同步机制（`scripts/bump-version.mjs` 一键升级 package.json/lock/deploy.sh），测试计数 61 → **73**  \
-> v0.1.8 变更：**Chrome 扩展取代书签 + 日历成功优先**——新增 `chrome-extension/` MV3 扩展：`chrome.cookies` API 读取 **HttpOnly cookie**（wr_vid/wr_skey/wr_rt，书签/页面 JS 永远拿不到）+ MAIN world content script 捕获 x-wrpa-0 签名头与请求体 → 生成与 F12 完全一致的完整 curl（取代书签成为 curl-helper 方式一）；curl-helper 重构移除书签区块，F12/手动保留；日历每日状态改为**成功优先**（当日任一成功即绿，无成功取最新，`pickDayStatus` TDD 5 测试）并移除图例；测试计数 73 → **78**
+> v0.1.8 变更：**Chrome 扩展取代书签 + 日历成功优先**——新增 `chrome-extension/` MV3 扩展：`chrome.cookies` API 读取 **HttpOnly cookie**（wr_vid/wr_skey/wr_rt，书签/页面 JS 永远拿不到）+ MAIN world content script 捕获 x-wrpa-0 签名头与请求体 → 生成与 F12 完全一致的完整 curl（取代书签成为 curl-helper 方式一）；curl-helper 重构移除书签区块，F12/手动保留；日历每日状态改为**成功优先**（当日任一成功即绿，无成功取最新，`pickDayStatus` TDD 5 测试）并移除图例；测试计数 73 → **78**  
+> v0.1.9 变更：**扩展 cookie 获取根因修复**——`chrome.cookies` API 按 host permission 匹配返回的集合与浏览器实际发送的 Cookie 头不一致（实测漏掉全部 `wr_*`/`ptcz`/`RK`），改用 `webRequest.onBeforeSendHeaders` **观察模式**（MV3 非阻塞 + `extraHeaders`）直接捕获浏览器真实发出的 Cookie 头（与 F12 严格同源）；同时修复 content 捕获的 URL 为相对路径 → `resolveUrl` 补全为绝对地址  
+> v0.1.10 变更：**扩展弹窗常驻**——点击扩展图标打开独立窗口（`chrome.windows.create` popup 类型），不随点击外部消失  
+> v0.1.11 变更：**扩展弹窗改为页面内浮动面板**——移除独立窗口，`content-bridge.js` 注入浮动面板到页面 DOM（Shadow DOM 隔离样式），`position: fixed` 右上角，点击页面其他位置不消失，右上角 ✕ 关闭按钮；`background.js` `action.onClicked` 改为发 `toggle-panel` 消息切换面板显隐  
+> v0.1.12 变更：**扩展打包下载 + Chrome 安全限制记录**——curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；新增 `scripts/pack-extension.mjs` 自动打包扩展为 zip；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证），CRX 仅 Chromium/Edge 可用
 
 ---
 
@@ -26,7 +30,7 @@
 | # | 决策点 | 选择 |
 |---|--------|------|
 | 1 | 部署架构 | **GitHub Pages 纯静态 SPA** |
-| 2 | 登录凭证获取 | **Chrome 扩展（v0.1.8 起，`chrome-extension/`）+ F12 备用 + 手动粘贴**（`/curl-helper/` 图文引导）；扩展 = content script（MAIN world hook fetch/XHR 捕获 x-wrpa-0 与请求体）+ `chrome.cookies` API 读 **HttpOnly cookie**（wr_vid/wr_skey/wr_rt——书签/页面 JS 永远拿不到），生成与 F12 完全一致的完整 curl。书签小工具因无法读 HttpOnly 已停用（源码保留仓库） |
+| 2 | 登录凭证获取 | **Chrome 扩展（v0.1.8 起，`chrome-extension/`）+ F12 备用 + 手动粘贴**（`/curl-helper/` 图文引导）；扩展 = content script（MAIN world hook fetch/XHR 捕获 x-wrpa-0 与请求体）+ `webRequest.onBeforeSendHeaders` **观察模式**（v0.1.9 修复，替代不可靠的 cookies API）直接读浏览器真实 Cookie 头（含 HttpOnly），与 F12 严格同源 → 生成与 F12 完全一致的完整 curl。书签小工具因无法读 HttpOnly 已停用（源码保留仓库） |
 | 3 | 认证方式 | **Personal Access Token（纯 PAT）**——GitHub Pages 纯前端无法安全完成 OAuth code 交换 |
 | 4 | 刷时长执行 | **触发 GitHub Actions**（`workflow_dispatch`） |
 | 5 | 日历图表 | **自绘热力图**（轻量 CSS grid，替代 Cal-Heatmap 依赖）；v0.1.6 改为**每月独立网格**：1 号居首格、顺序填充不跨月；CSS Grid 按总列数均分铺满；v0.1.7 状态**四档统一**（success=绿 / failure=红 / running=蓝脉冲 / idle=灰）；v0.1.8 每日**成功优先**（当日任一成功即绿，无成功取最新）并移除图例 |
@@ -38,7 +42,8 @@
 | 11 | 记忆存储与回读 | **配置持久化 localStorage + 打开面板自动连接回读远程真实状态**（v0.1.3）——刷新/重开不丢配置，仪表盘显示真实远程状态而非"未配置" |
 | 12 | 运行状态语义 | **单一事实来源 `classifyRun`**（v0.1.7）——运行状态圆点与运行日历格子共用同一四档分类（running/success/failure/idle），杜绝两处状态漂移；日期归组统一本地时区 `localDateKey` |
 | 13 | 版本号管理 | **`package.json` 单一事实来源 + `scripts/bump-version.mjs` 一键三处同步**（v0.1.7）——界面从 package.json 读取；bump 脚本同步 package.json / package-lock.json / deploy.sh 标签，杜绝版本号漂移复发 |
-| 14 | HttpOnly 凭证获取 | **Chrome 扩展 `chrome.cookies` API**（v0.1.8）——微信读书把 wr_vid/wr_skey/wr_rt 设为 HttpOnly，页面 JS 与书签均无法读取（硬限制）；扩展的 cookies API 可读全部 cookie（官方文档 + 社区实证），是本项目解决 curl_bash 登录凭证缺口的最终方案 |
+| 14 | HttpOnly 凭证获取 | **Chrome 扩展 `webRequest.onBeforeSendHeaders` 观察模式**（v0.1.9 最终修复）——微信读书把 wr_vid/wr_skey/wr_rt 设为 HttpOnly，页面 JS 与书签均无法读取（硬限制）；v0.1.8 初用 `chrome.cookies` API 但实测返回集合与浏览器实际发送的 Cookie 头不一致（漏掉全部 `wr_*`/`ptcz`/`RK`），v0.1.9 改用 webRequest 直接观察浏览器真实发出的 Cookie 头（与 F12 严格同源，含 HttpOnly）——是本项目解决 curl_bash 登录凭证缺口的最终方案 |
+| 15 | 扩展分发 | **curl-helper 页面直接下载 ZIP + CRX**（v0.1.12）——ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证）；`scripts/pack-extension.mjs` 自动打包扩展为 zip |
 
 ---
 
@@ -112,23 +117,26 @@
 wxread-panel/
 ├── .github/workflows/
 │   └── deploy.yml               # 构建（注入 PANEL_PASSWORD_HASH）+ 单测 + 发布到 gh-pages
-├── chrome-extension/           # Chrome 扩展（v0.1.8 取代书签；cookies API 读 HttpOnly）
-│   ├── manifest.json            #   MV3：cookies+storage+clipboardWrite，host 仅 weread.qq.com
+├── chrome-extension/           # Chrome 扩展（v0.1.8 取代书签；v0.1.9 webRequest 读真实 Cookie 头）
+│   ├── manifest.json            #   MV3：cookies+storage+clipboardWrite+webRequest，host weread.qq.com+qq.com
 │   ├── content-main.js          #   页面主世界（MAIN）：hook fetch/XHR 捕获 x-wrpa-0 + 请求体
-│   ├── content-bridge.js        #   桥接：转发捕获消息给 service worker
-│   ├── background.js            #   cookies.getAll 读 HttpOnly + 合并生成完整 curl + 存 storage
-│   ├── popup.html / popup.js    #   弹窗：展示 + 复制 curl_bash
+│   ├── content-bridge.js        #   桥接：转发捕获消息 + 注入浮动面板到页面 DOM（v0.1.11，Shadow DOM 隔离）
+│   ├── background.js            #   webRequest.onBeforeSendHeaders 读真实 Cookie 头 + buildCurl + action.onClicked 切换面板
+│   ├── popup.html / popup.js    #   弹窗（v0.1.11 起不再直接使用，面板由 content-bridge 注入页面）
 │   └── README.md                #   安装（开发者模式加载）/使用/权限说明
 ├── public/
 │   ├── favicon.svg
 │   └── curl-helper/             # 独立 curl_bash 获取工具
 │       ├── index.html           #   三选一获取方式（Chrome 扩展/F12/手动粘贴；书签已移除）
+│       ├── wxread-curl-helper.zip  # 扩展 ZIP 包（v0.1.12，pack-extension.mjs 生成）
+│       ├── wxread-curl-helper.crx  # 扩展 CRX 包（v0.1.12，Chromium/Edge 拖拽安装）
 │       ├── bookmarklet.js       #   书签小工具源码（v0.1.8 起停用，代码保留供历史参考）
 │       └── bookmarklet.min.js   #   书签压缩产物（build-bookmarklet.mjs 输出，不再内嵌页面）
 ├── scripts/
 │   ├── password-hash.mjs        # 生成密码门哈希（静默输入/环境变量，防泄漏）
 │   ├── build-bookmarklet.mjs    # esbuild 压缩 bookmarklet → 输出独立 min 文件（v0.1.8 起不再改 index.html）
-│   └── bump-version.mjs         # 一键升级版本号（package.json/lock/deploy.sh 三处同步，v0.1.7）
+│   ├── bump-version.mjs         # 一键升级版本号（package.json/lock/deploy.sh 三处同步，v0.1.7）
+│   └── pack-extension.mjs       # 打包 chrome-extension/ 为 zip 到 public/curl-helper/（v0.1.12）
 ├── src/
 │   ├── main.ts                  # 入口
 │   ├── App.vue                  # 根组件：锁屏/侧边栏/路由视图 + 挂载时自动回读远程状态
@@ -277,23 +285,25 @@ GET /repos/{owner}/{repo}/actions/secrets/public-key
 配置页"微信读书接口"旁置"一键获取 curl_bash"独立模块（大按钮 + 三步引导）
 ```
 
-**Chrome 扩展原理（v0.1.8）**：书签小工具的硬限制是微信读书把 `wr_vid`/`wr_skey`/`wr_rt` 设为 **HttpOnly cookie**——浏览器禁止任何网页脚本（含书签）读取，导致书签生成的 curl 缺登录凭证、`main.py` 启动刷新 wr_skey 必然失败。**Chrome 扩展可突破此边界**：
+**Chrome 扩展原理（v0.1.8 创建；v0.1.9 根因修复）**：书签小工具的硬限制是微信读书把 `wr_vid`/`wr_skey`/`wr_rt` 设为 **HttpOnly cookie**——浏览器禁止任何网页脚本（含书签）读取，导致书签生成的 curl 缺登录凭证、`main.py` 启动刷新 wr_skey 必然失败。**Chrome 扩展可突破此边界**：
 
 ```
-chrome-extension/（MV3，host 仅 weread.qq.com）
+chrome-extension/（MV3，host weread.qq.com + qq.com）
   ├─ content-main.js（MAIN world）：hook fetch/XHR 捕获 /web/book/read 的
   │    x-wrpa-0 签名头 + 请求体 + 页面可见头 → postMessage
-  ├─ content-bridge.js（isolated）：转发捕获消息
+  ├─ content-bridge.js（isolated）：转发捕获消息 + 注入浮动面板（v0.1.11，Shadow DOM 隔离）
   └─ background.js（service worker）：
-       chrome.cookies.getAll({ domain: 'weread.qq.com' })  ← 含全部 HttpOnly cookie
-       → 与捕获头合并（cookie 以 cookies API 为准）
+       webRequest.onBeforeSendHeaders（extraHeaders）观察  ← v0.1.9 修复
+       ← 直接读浏览器对 read 请求真实发出的 Cookie 头（含 HttpOnly，与 F12 严格同源）
+       → 与捕获头合并 + resolveUrl 补全绝对 URL
        → buildCurl 生成与 F12 完全一致的完整 curl → chrome.storage
-  └─ popup：展示捕获状态（含"已读到 wr_skey 等 HttpOnly 凭证"）+ 一键复制
+  └─ 浮动面板（v0.1.11）：content-bridge 注入页面 DOM，右上角 fixed，点击外部不消失，✕ 关闭
 ```
 
-- 关键能力：`chrome.cookies` API 可读取 cookie 存储中的**全部 cookie，包括 HttpOnly**（官方文档 + 社区实证）——这是书签（页面 JS）永远做不到的
+- **v0.1.9 根因修复**：v0.1.8 初用 `chrome.cookies` API 读 HttpOnly cookie，但实测返回集合与浏览器实际发送的 Cookie 头不一致（漏掉全部 `wr_*`/`ptcz`/`RK`）；改用 `webRequest.onBeforeSendHeaders` 观察模式（MV3 非阻塞 + `extraHeaders`）直接读浏览器真实发出的 Cookie 头——与 F12 显示的 Cookie 头**同一请求、严格同源**
+- **v0.1.11 面板改造**：移除独立窗口（v0.1.10 的 `chrome.windows.create`）与默认 popup，改为 `content-bridge.js` 注入浮动面板到页面 DOM（Shadow DOM 隔离样式，`position: fixed` 右上角，点击外部不消失，右上角 ✕ 关闭按钮）；`background.js` `action.onClicked` 发 `toggle-panel` 消息切换面板显隐
 - 构建逻辑与 `src/utils/curlBuilder.ts`（TDD 11 测试）等价，扩展内联自包含实现
-- 安装：`chrome://extensions` → 开发者模式 → 加载已解压的扩展程序（选择 `chrome-extension/` 文件夹）
+- **安装（v0.1.12 简化）**：curl-helper 页面直接下载 ZIP → 解压 → `chrome://extensions` 开发者模式 → 加载已解压的扩展程序（选择解压后的文件夹）；CRX 仅 Chromium/Edge 可拖拽安装（Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装）
 - **书签停用（v0.1.8）**：源码 `public/curl-helper/bookmarklet.js` 与压缩产物保留仓库供历史参考，curl-helper 页面不再提供（浏览器安全限制无法绕过的记录）
 
 ### 5.8 运行日历（每月独立网格，v0.1.6 重写；四档统一 v0.1.7；成功优先 v0.1.8）
@@ -393,7 +403,10 @@ const wxreadAdapter = {
 
 - 部署在面板同域下（`/curl-helper/`），静态 HTML，双击可用
 - 提供三种获取 `WXREAD_CURL_BASH` 方式（**Chrome 扩展** / F12 教程 / 手动粘贴）
-- **Chrome 扩展（v0.1.8 起方式一）**：阅读页翻一页即自动捕获，`chrome.cookies` API 读取 HttpOnly 凭证（wr_vid/wr_skey/wr_rt），生成与 F12 完全一致的完整 curl 并一键复制（详见 5.7）；页面含 6 步安装引导（下载 chrome-extension → 开发者模式加载）
+- **Chrome 扩展（v0.1.8 起方式一）**：阅读页翻一页即自动捕获，`webRequest.onBeforeSendHeaders` 观察模式读浏览器真实 Cookie 头（含 HttpOnly 凭证 wr_vid/wr_skey/wr_rt，v0.1.9 修复），生成与 F12 完全一致的完整 curl 并一键复制（详见 5.7）；页面含下载按钮与安装引导
+- **v0.1.12 分发简化**：curl-helper 页面方式一下方新增 `wxread-curl-helper.zip`（推荐，Windows/Mac Chrome 唯一可靠方式）+ `wxread-curl-helper.crx`（Chromium/Edge 拖拽安装）；`scripts/pack-extension.mjs` 自动打包
+- **Chrome 安全限制**：Chrome 从 v33（Windows）/v44（Mac）起禁止从本地 CRX 安装扩展（官方文档 + 2025 社区实证），ZIP 方式（下载→解压→开发者模式加载）是所有 Chrome 用户唯一可靠方式
+- **v0.1.11 面板常驻**：扩展面板注入页面 DOM（Shadow DOM 隔离），点击外部不消失，右上角 ✕ 关闭
 - 书签小工具（v0.1.5）因无法读取 HttpOnly cookie 已停用（v0.1.8），源码保留仓库；F12 保留为可靠备用
 - 配置页"一键获取 curl_bash"独立模块（v0.1.5，位于定时任务后）提供醒目入口（自动适配 base 路径）
 
@@ -459,7 +472,11 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 | **v0.1.5 书签工具（线上实测）** | ✅ curl-helper 内嵌新压缩书签（6.9KB），文案"翻一页 → 自动捕获（含 x-wrpa-0 签名头与请求体）"在线 |
 | **v0.1.6 运行日历重写** | ✅ 已部署（`efd2fb9`），线上实测：JS chunk 含 `month-group`/月份判断、CSS chunk 含 `.month-group+.month-group{margin-left:10px}` 组间间隔、`.contrib-cell{aspect-ratio:1/1}` 铺满、绿/红状态色与"最新一条"逻辑在线 |
 | **v0.1.7 状态同步 + 版本统一** | ✅ 已部署（`518d251`），健康检查 6/6，线上 bundle 实测含 classifyRun 四档逻辑、日历蓝/灰格子样式、本地时区归组与版本号 0.1.7 |
-| **v0.1.8 Chrome 扩展 + 日历成功优先（推送部署中）** | ⏳ 已推送 `4fd2305`（扩展取代书签 + curl-helper 重构 + 日历成功优先/去图例），部署完成后待线上验证 |
+| **v0.1.8 Chrome 扩展 + 日历成功优先** | ✅ 已部署（`4fd2305`），扩展取代书签 + curl-helper 重构 + 日历成功优先/去图例 |
+| **v0.1.9 扩展 cookie 获取根因修复** | ✅ 已部署（`2293c73`），webRequest.onBeforeSendHeaders 观察模式读真实 Cookie 头 + URL 补全 |
+| **v0.1.10 扩展弹窗常驻独立窗口** | ✅ 已部署（`a466e7d`），chrome.windows.create popup 类型（v0.1.11 已改为页面内浮动面板） |
+| **v0.1.11 扩展弹窗页面内浮动面板** | ✅ 已部署（`77cf1ef`），content-bridge 注入 Shadow DOM 面板 + action.onClicked 切换 |
+| **v0.1.12 扩展打包下载（推送部署中）** | ⏳ 已推送 `645f221`（ZIP + CRX 双下载按钮 + pack-extension.mjs），部署完成后待线上验证 |
 
 线上验证工具：
 - `verify-health.mjs` — 免 token 健康检查（入口/登录/守卫/curl-helper/bundle/favicon，任一失败退出码非 0）
@@ -494,4 +511,8 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] v0.1.7 版本号同步机制：package.json 单一事实来源 + `scripts/bump-version.mjs` 一键三处同步（package.json/lock/deploy.sh），版本 0.1.7——已部署并线上验证
 - [x] v0.1.8 Chrome 扩展取代书签：`chrome.cookies` API 读取 HttpOnly cookie（wr_vid/wr_skey/wr_rt）+ MAIN world hook 捕获 x-wrpa-0/请求体 → 完整 curl（`chrome-extension/` 目录 + README）；curl-helper 重构扩展升为方式一、书签移除（源码保留）；`build-bookmarklet.mjs` 改输出独立文件——已推送部署
 - [x] v0.1.8 日历成功优先：`pickDayStatus`（当日任一成功即绿，无成功取最新，TDD 5 测试）并移除图例；单测 78 + E2E 4——已推送部署
+- [x] v0.1.9 扩展 cookie 获取根因修复：`chrome.cookies` API 返回集合与浏览器实际 Cookie 头不一致 → 改用 `webRequest.onBeforeSendHeaders` 观察模式直接读真实 Cookie 头（与 F12 严格同源）+ URL 补全——已部署验证
+- [x] v0.1.10 扩展弹窗常驻独立窗口（chrome.windows.create）——已部署（v0.1.11 已改进为页面内浮动面板）
+- [x] v0.1.11 扩展弹窗改为页面内浮动面板：content-bridge 注入 Shadow DOM 面板（position: fixed 右上角，点击外部不消失，✕ 关闭按钮）+ action.onClicked 切换显隐——已部署验证
+- [x] v0.1.12 扩展打包下载：curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；`scripts/pack-extension.mjs` 自动打包；Chrome 安全限制记录（v33/44 起禁止 Windows/Mac 从本地 CRX 安装）；版本同步 0.1.12——已推送部署
 - [ ] wxread 升级自诊断 banner（设计项，未实施）
