@@ -44,6 +44,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { dispatchWorkflow, listWorkflowRuns, type RunInfo } from '@/api/github';
 import { groupRunsByLocalDay, daysForWidth } from '@/utils/runGrouping';
+import { classifyRun } from '@/utils/runStatus';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
@@ -84,11 +85,10 @@ function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 // 运行状态只用圆点图标表达（绿=成功 / 红=失败 / 蓝=运行中 / 灰=其他）
+// 判定统一走 classifyRun（与运行日历同源，保证两处状态完全同步）
+const DOT_CLASS = { running: 'running', success: 'ok', failure: 'error', idle: 'idle' } as const;
 function dotClass(run: RunInfo): string {
-  if (run.status === 'in_progress') return 'running';
-  if (run.conclusion === 'success') return 'ok';
-  if (run.conclusion === 'failure') return 'error';
-  return 'idle';
+  return DOT_CLASS[classifyRun(run)];
 }
 // 阅读时长 = 运行耗时（updated_at - run_started_at），如 30 分钟 / 12分30秒
 function formatDuration(run: RunInfo): string {

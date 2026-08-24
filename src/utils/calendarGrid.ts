@@ -8,7 +8,7 @@
 
 export interface CalendarCell {
   date: string; // 'YYYY-MM-DD'，空格子为 ''
-  s: string; // success | failure | empty | future | blank
+  s: string; // success | failure | running | idle | empty | future | blank
   title: string;
 }
 
@@ -17,8 +17,9 @@ export interface CalendarMonthBlock {
   weeks: CalendarCell[][]; // 每列 7 格
 }
 
+// 状态与 Dashboard 圆点语义一致（v0.1.7）：success=绿 / failure=红 / running=蓝 / idle=灰
 export interface DayStatus {
-  s: 'success' | 'failure';
+  s: 'success' | 'failure' | 'running' | 'idle';
   note?: string;
 }
 
@@ -42,9 +43,10 @@ export function buildMonthBlocks(
       else if (data) s = data.s;
       let title = dateStr;
       if (data) {
-        title += data.s === 'failure'
-          ? ` 失败${data.note ? ': ' + data.note : ''}`
-          : data.note ? ` ${data.note}` : ' 成功';
+        if (data.s === 'failure') title += ` 失败${data.note ? ': ' + data.note : ''}`;
+        else if (data.s === 'running') title += ' 运行中';
+        else if (data.s === 'idle') title += ` ${data.note || '已取消/跳过'}`;
+        else title += ' 成功';
       } else {
         title += ' 未运行';
       }

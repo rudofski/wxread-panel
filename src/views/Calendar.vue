@@ -19,6 +19,8 @@
             <span class="legend-cell cell-empty"></span><span>无记录</span>
             <span class="legend-cell cell-success"></span><span>成功</span>
             <span class="legend-cell cell-failure"></span><span>失败</span>
+            <span class="legend-cell cell-running"></span><span>运行中</span>
+            <span class="legend-cell cell-idle"></span><span>已取消</span>
           </div>
         </div>
       </div>
@@ -47,6 +49,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { listWorkflowRuns, parseRunError, getRunLogs, type RunInfo } from '@/api/github';
 import { buildMonthBlocks, type CalendarMonthBlock, type DayStatus } from '@/utils/calendarGrid';
+import { classifyRun } from '@/utils/runStatus';
+import { localDateKey } from '@/utils/runGrouping';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
@@ -56,20 +60,15 @@ const errorCache = ref<Map<number, string>>(new Map());
 
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
-// 每日最新一条运行状态；只要最新运行结果不是失败即为绿色
+// 每日最新一条运行状态（runs 倒序，首个命中即最新），
+// 状态分类与 Dashboard 完全一致：success=绿 / failure=红 / running=蓝 / idle=灰（v0.1.7）
 const dayMap = computed(() => {
   const map = new Map<string, DayStatus>();
   for (const run of runs.value) {
-    const date = (run.run_started_at || run.created_at).slice(0, 10);
+    const date = localDateKey(run.run_started_at || run.created_at);
     if (map.has(date)) continue;
-    if (run.conclusion === 'failure') {
-      map.set(date, { s: 'failure', note: errorCache.value.get(run.id) || '运行失败' });
-    } else if (run.status === 'in_progress') {
-      map.set(date, { s: 'success', note: '运行中' });
-    } else {
-      // success / cancelled / skipped / timed_out 等一律视为非失败 → 绿色
-      map.set(date, { s: 'success' });
-    }
+    const s = classifyRun(run);
+    map.set(date, s === 'failure' ? { s, note: errorCache.value.get(run.id) || '运行失败' } : { s });
   }
   return map;
 });
@@ -95,26 +94,27 @@ const statusText = computed(() => {
   const st = selectedDetail.value?.status;
   if (st === 'success') return '成功';
   if (st === 'running') return '运行中';
+  if (st === 'idle') return '已取消/跳过';
   return '失败';
 });
 const statusClass = computed(() => {
   const st = selectedDetail.value?.status;
   if (st === 'success') return 'text-ok';
   if (st === 'running') return 'text-running';
+  if (st === 'idle') return 'text-idle';
   return 'text-error';
 });
 
 function showDetail(dateStr: string) {
   selectedDate.value = dateStr;
-  // 取当日最新一条运行记录
-  const latest = runs.value.find(r => (r.run_started_at || r.created_at).slice(0, 10) === dateStr);
+  // 取当日最新一条运行记录（与 dayMap 同源：本地时区 key）
+  const latest = runs.value.find(r => localDateKey(r.run_started_at || r.created_at) === dateStr);
   if (!latest) { selectedDetail.value = null; return; }
-  if (latest.conclusion === 'failure') {
+  const s = classifyRun(latest);
+  if (s === 'failure') {
     selectedDetail.value = { status: 'failure', error: errorCache.value.get(latest.id) || '运行失败' };
-  } else if (latest.status === 'in_progress') {
-    selectedDetail.value = { status: 'running' };
   } else {
-    selectedDetail.value = { status: 'success' };
+    selectedDetail.value = { status: s };
   }
 }
 
@@ -150,6 +150,9 @@ onMounted(loadData);
 .contrib-cell { aspect-ratio: 1 / 1; border-radius: 3px; }
 .cell-success { background: #216e39; cursor: pointer; }
 .cell-failure { background: #cf222e; cursor: pointer; }
+.cell-running { background: var(--color-primary); cursor: pointer; animation: cell-pulse 1s ease-in-out infinite; }
+.cell-idle { background: #9aa0a6; cursor: pointer; }
+@keyframes cell-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 .cell-empty { background: #ebedf0; cursor: pointer; }
 .cell-future { background: transparent; border: 1px solid #ebedf0; }
 .cell-blank { background: transparent; }
@@ -158,6 +161,7 @@ onMounted(loadData);
 .legend-cell:first-child { margin-left: 0; }
 .text-ok { color: var(--color-success); }
 .text-running { color: var(--color-primary); }
+.text-idle { color: #9aa0a6; }
 .text-error { color: var(--color-danger); }
 .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .stat-item { text-align: center; padding: 16px; border-radius: 8px; background: #f9f9f9; }
