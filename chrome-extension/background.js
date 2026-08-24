@@ -7,7 +7,8 @@
 //   Cookie 头（含 HttpOnly），与 F12 显示/复制的 curl **严格同源**（同一请求）。
 // 另修复：content 捕获的 url 是相对路径（'/web/book/read'），
 //   生成的 curl 无 scheme/host 无法执行——补 resolveUrl 转绝对 URL。
-// v0.1.10：点击扩展图标打开常驻独立窗口（不随点击外部消失），替代默认 popup。
+// v0.1.11：移除独立窗口，改为 content-bridge.js 注入浮动面板到页面 DOM，
+//   点击扩展图标发 toggle 消息切换面板显隐（点击外部不消失，有关闭按钮）。
 
 // 需要被验证存在的关键 HttpOnly 登录凭证
 const READ_COOKIE_KEYS = ['wr_vid', 'wr_skey', 'wr_rt', 'wr_ql', 'wr_localvid', 'wr_name', 'wr_avatar', 'wr_gender'];
@@ -32,7 +33,7 @@ chrome.webRequest.onBeforeSendHeaders.addListener(
   ['requestHeaders', 'extraHeaders']
 );
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'captured') {
     handleCaptured(msg.data).then(sendResponse);
     return true; // 异步响应
@@ -63,7 +64,7 @@ async function handleCaptured(data) {
     // 生成完整 curl
     const curl = buildCurl({ url: absoluteUrl, headers, body: data.body });
 
-    // 保存 + 供 popup 展示（含诊断）
+    // 保存 + 供面板展示（含诊断）
     const names = cookieHeader.split(';').map(s => s.split('=')[0].trim()).filter(Boolean);
     const uniqNames = [...new Set(names)];
     await chrome.storage.local.set({
@@ -130,28 +131,12 @@ function buildCurl({ url, headers, body }) {
   return lines.join('\n');
 }
 
-// ============ 常驻独立窗口（替代默认 popup，不随点击外部消失） ============
-const WIN_KEY = 'panelWinId';
-const PANEL_URL = 'panel.html';
-const W = 480, H = 520;
-
-chrome.action.onClicked.addListener(async () => {
-  const { [WIN_KEY]: winId } = await chrome.storage.local.get(WIN_KEY);
-  if (winId) {
-    try {
-      await chrome.windows.get(winId);
-      await chrome.windows.update(winId, { focused: true, state: 'normal' });
-      return;
-    } catch (e) { /* 窗口已关闭，重新创建 */ }
+// ============ 点击扩展图标 → 切换页面内浮动面板 ============
+chrome.action.onClicked.addListener(async (tab) => {
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: 'toggle-panel' });
+  } catch (e) {
+    // 页面可能还没注入 content script（如刚安装扩展后未刷新页面）
+    console.error('无法发送消息到页面，请刷新微信读书阅读页后重试', e);
   }
-  const win = await chrome.windows.create({
-    url: PANEL_URL, type: 'popup', width: W, height: H, focused: true,
-  });
-  await chrome.storage.local.set({ [WIN_KEY]: win.id });
-  chrome.windows.onRemoved.addListener(function onRemoved(closedId) {
-    if (closedId === win.id) {
-      chrome.storage.local.remove(WIN_KEY);
-      chrome.windows.onRemoved.removeListener(onRemoved);
-    }
-  });
 });
