@@ -7,9 +7,9 @@ const warnEl = document.getElementById('warn');
 const diagEl = document.getElementById('diag');
 
 function refresh() {
-  chrome.storage.local.get(['lastCurl', 'lastCapturedAt', 'lastCookieKeys', 'lastCookieNames', 'lastError'], (r) => {
+  chrome.storage.local.get(['lastCurl', 'lastCapturedAt', 'lastCookieKeys', 'lastCookieNames', 'lastCookieCount', 'lastLoggedIn', 'lastError'], (r) => {
     if (r.lastError) {
-      statusEl.textContent = '❌ 捕获出错：' + r.lastError;
+      statusEl.textContent = '❌ ' + r.lastError;
       statusEl.className = 'status err';
       return;
     }
@@ -18,20 +18,17 @@ function refresh() {
       const time = r.lastCapturedAt ? new Date(r.lastCapturedAt).toLocaleTimeString() : '';
       const keys = (r.lastCookieKeys || []);
       const missing = ['wr_skey', 'wr_vid', 'wr_rt'].filter(k => !keys.includes(k));
-      statusEl.textContent = '✅ 已捕获 ' + time + (keys.length ? '，读到 HttpOnly 凭证：' + keys.join('、') : '');
+      statusEl.textContent = '✅ 已捕获 ' + time + (keys.length ? '，读到的登录凭证：' + keys.join('、') : '');
       statusEl.className = 'status ok';
-      warnEl.style.display = missing.length ? 'block' : 'none';
-      warnEl.textContent = missing.length
-        ? '⚠️ 未读到 ' + missing.join('、') + '（登录态可能已过期），请刷新阅读页重新登录后再试。若仍缺失，请改用 F12 方式获取。'
-        : '';
-      // 诊断：显示读取到的全部 cookie 名单
-      if (r.lastCookieNames && r.lastCookieNames.length) {
-        diagEl.style.display = 'block';
-        diagEl.textContent = '已读取 ' + r.lastCookieNames.length + ' 个 cookie：' + r.lastCookieNames.join('、');
+      if (missing.length) {
+        warnEl.style.display = 'block';
+        warnEl.textContent = '⚠️ 未检测到微信读书登录态（缺少 ' + missing.join('、') + '）';
       } else {
-        diagEl.style.display = 'block';
-        diagEl.textContent = '⚠️ 未读到任何 cookie（请确认扩展已获取 weread.qq.com 访问权限，必要时重新加载扩展后刷新阅读页）';
+        warnEl.style.display = 'none';
       }
+      const n = r.lastCookieCount || (r.lastCookieNames || []).length;
+      diagEl.style.display = 'block';
+      diagEl.textContent = '已捕获 ' + n + ' 个 cookie（真实请求头，含 HttpOnly）：' + (r.lastCookieNames || []).join('、');
     } else {
       curlEl.value = '';
       statusEl.textContent = '⏳ 等待捕获… 请在阅读页翻一页';

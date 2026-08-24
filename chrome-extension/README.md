@@ -4,11 +4,11 @@
 
 ## 为什么需要它
 
-微信读书把 `wr_vid` / `wr_skey` / `wr_rt` 设为 **HttpOnly cookie**——浏览器禁止任何网页脚本（包括书签小工具）读取，导致书签生成的 curl 缺少登录凭证、无法刷时长。**Chrome 扩展不受此限制**：
+微信读书把 `wr_vid` / `wr_skey` / `wr_rt` 设为 **HttpOnly Cookie**——浏览器禁止任何网页脚本（包括书签小工具）读取，导致书签生成的 curl 缺少登录凭证、无法刷时长。**Chrome 扩展不受此限制**：
 
-- `chrome.cookies` API 可读取 HttpOnly cookie（这是书签永远做不到的）
+- `webRequest.onBeforeSendHeaders`（观察模式，含 `extraHeaders`）捕获**浏览器真实发出的 Cookie 头**（含 HttpOnly）——与 F12 复制/显示的 curl **严格同源**（同一请求的同一 Cookie 头）
 - content script 捕获页面真实发出的 `x-wrpa-0` 签名头与请求体
-- 两者合并后与 F12「Copy as cURL」**完全一致**
+- URL 自动补全为绝对地址，生成的完整 curl 与 F12「Copy as cURL」**完全一致**
 
 ## 安装（开发者模式加载，无需上架商店）
 
@@ -30,11 +30,11 @@
 
 | 权限 | 用途 |
 |------|------|
-| `cookies` + `https://weread.qq.com/*`、`https://qq.com/*`、`https://*.qq.com/*` | 读取微信读书与 QQ 登录态 cookie（含 HttpOnly `wr_skey` 等，以及 QQ 域 `RK`/`ptcz` 等），生成与 F12 完全一致的完整 curl |
+| `webRequest`（观察 only） | 捕获微信读书阅读上报请求**真实发出的 Cookie 头**（含 HttpOnly `wr_skey` 等，与 F12 同源） |
 | `storage` | 暂存最近一次捕获的 curl，供弹窗展示 |
 | `clipboardWrite` | 点击「复制」按钮写入剪贴板 |
 
-仅访问 `weread.qq.com` 与 `qq.com`（微信读书依赖的 QQ 登录态域），不读取其他网站数据；捕获的数据仅保存在本机扩展存储中，不会上传。
+（`cookies` 权限保留备用；`https://weread.qq.com/*` host 权限限定仅微信读书域。）仅读取微信读书发出的请求头，不读取其他网站数据；捕获的数据仅保存在本机扩展存储中，不会上传。
 
 ## 文件结构
 
