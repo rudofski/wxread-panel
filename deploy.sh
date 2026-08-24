@@ -12,7 +12,7 @@ echo "==> [1/2] 推送 master 触发 GitHub Actions 构建 + Pages 部署 ..."
 git push origin master
 
 echo "==> [2/2] 推送标签 ..."
-git push origin v0.1.7 || echo "(标签已存在则忽略)"
+git push origin v0.1.8 || echo "(标签已存在则忽略)"
 
 echo ""
 echo "部署已触发。查看进度：https://github.com/<owner>/wxread-panel/actions"

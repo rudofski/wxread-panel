@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "在微信读书阅读页一键捕获真实阅读上报请求，生成含完整登录凭证（含 HttpOnly cookie：wr_vid/wr_skey/wr_rt）的 curl_bash，用于 wxread 刷时长配置",
   "permissions": ["cookies", "storage", "clipboardWrite"],
-  "host_permissions": ["https://weread.qq.com/*"],
+  "host_permissions": ["https://weread.qq.com/*", "https://qq.com/*", "https://*.qq.com/*"],
   "background": { "service_worker": "background.js" },
   "action": {
     "default_popup": "popup.html",

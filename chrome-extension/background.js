@@ -17,8 +17,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 async function handleCaptured(data) {
   try {
-    // 1. 完整 cookie（含 HttpOnly）——cookies API 是扩展读取 HttpOnly 的唯一可靠途径
-    const cookies = await chrome.cookies.getAll({ domain: 'weread.qq.com' });
+    // 1. 完整 cookie（含 HttpOnly）——cookies API 是扩展读取 HttpOnly 的唯一可靠途径。
+    //    getAll({}) 不带 domain 过滤：① 规避带前导点 domain（.weread.qq.com）匹配的已知问题；
+    //    ② host_permissions 已覆盖 weread.qq.com 与 qq.com 域，返回全部可访问 cookie
+    //    （与 F12 复制的 curl 中的 cookie 串完全一致，含 QQ 登录态 RK/ptcz 等）。
+    const cookies = await chrome.cookies.getAll({});
     const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
     // 2. 合并 headers：捕获的请求头 + 完整 cookie 覆盖（cookie 以 cookies API 为准）
@@ -30,11 +33,12 @@ async function handleCaptured(data) {
     // 3. 生成完整 curl
     const curl = buildCurl({ url: data.url, headers, body: data.body });
 
-    // 4. 保存 + 供 popup 展示
+    // 4. 保存 + 供 popup 展示（含 cookie 名单诊断）
     await chrome.storage.local.set({
       lastCurl: curl,
       lastCapturedAt: Date.now(),
       lastCookieKeys: READ_COOKIE_KEYS.filter(k => cookies.some(c => c.name === k)),
+      lastCookieNames: cookies.map(c => c.name).sort(),
     });
     return { ok: true, curl };
   } catch (e) {

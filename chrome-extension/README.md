@@ -30,11 +30,11 @@
 
 | 权限 | 用途 |
 |------|------|
-| `cookies` + `https://weread.qq.com/*` | 读取微信读书登录 cookie（含 HttpOnly `wr_skey` 等），生成完整 curl |
+| `cookies` + `https://weread.qq.com/*`、`https://qq.com/*`、`https://*.qq.com/*` | 读取微信读书与 QQ 登录态 cookie（含 HttpOnly `wr_skey` 等，以及 QQ 域 `RK`/`ptcz` 等），生成与 F12 完全一致的完整 curl |
 | `storage` | 暂存最近一次捕获的 curl，供弹窗展示 |
 | `clipboardWrite` | 点击「复制」按钮写入剪贴板 |
 
-仅访问 `weread.qq.com`，不读取其他网站数据；捕获的数据仅保存在本机扩展存储中，不会上传。
+仅访问 `weread.qq.com` 与 `qq.com`（微信读书依赖的 QQ 登录态域），不读取其他网站数据；捕获的数据仅保存在本机扩展存储中，不会上传。
 
 ## 文件结构
 
