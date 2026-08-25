@@ -1,8 +1,8 @@
 # wxread-panel 扩展辅助工程设计文档
 
-> 版本：v0.1.12  \
-> 日期：2026-08-24  \
-> 对应提交：`645f221`  \
+> 版本：v0.1.13  \
+> 日期：2026-08-25  \
+> 对应提交：`1a7fbdc`  \
 > 关联仓库：[rudofski/wxread](https://github.com/rudofski/wxread/)  \
 > v0.1.1 变更：移除书城搜索与 Cloudflare Worker 代理；认证改为纯 PAT；热力图改自绘实现  \
 > v0.1.2 变更：Secrets 加密根因修复（tweetnacl 随机 nonce → libsodium `crypto_box_seal`）；新增可选密码门；线上保存配置验证通过（422 错误消失）  \
@@ -15,7 +15,8 @@
 > v0.1.9 变更：**扩展 cookie 获取根因修复**——`chrome.cookies` API 按 host permission 匹配返回的集合与浏览器实际发送的 Cookie 头不一致（实测漏掉全部 `wr_*`/`ptcz`/`RK`），改用 `webRequest.onBeforeSendHeaders` **观察模式**（MV3 非阻塞 + `extraHeaders`）直接捕获浏览器真实发出的 Cookie 头（与 F12 严格同源）；同时修复 content 捕获的 URL 为相对路径 → `resolveUrl` 补全为绝对地址  
 > v0.1.10 变更：**扩展弹窗常驻**——点击扩展图标打开独立窗口（`chrome.windows.create` popup 类型），不随点击外部消失  
 > v0.1.11 变更：**扩展弹窗改为页面内浮动面板**——移除独立窗口，`content-bridge.js` 注入浮动面板到页面 DOM（Shadow DOM 隔离样式），`position: fixed` 右上角，点击页面其他位置不消失，右上角 ✕ 关闭按钮；`background.js` `action.onClicked` 改为发 `toggle-panel` 消息切换面板显隐  
-> v0.1.12 变更：**扩展打包下载 + Chrome 安全限制记录**——curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；新增 `scripts/pack-extension.mjs` 自动打包扩展为 zip；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证），CRX 仅 Chromium/Edge 可用
+> v0.1.12 变更：**扩展打包下载 + Chrome 安全限制记录**——curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；新增 `scripts/pack-extension.mjs` 自动打包扩展为 zip；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证），CRX 仅 Chromium/Edge 可用  \
+> v0.1.13 变更：**API 并行加速 + 快捷操作重定位 + 查看Actions 按钮**——settings store 中 `refreshSecretStatus` 5 个 `secretExists` 改为 `Promise.allSettled` 并行检测 + `connectRepo` 中 `listWorkflows`/`fromGitHub` 改为 `Promise.allSettled` 并行加载（面板启动速度提升约 3-5 倍）；Dashboard 删除"快捷操作"卡片（"立即运行"/"配置"按钮）；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧；RepoInput.vue Actions 工作流下拉框下方新增"📋 查看 Actions"链接（`<a>` 标签，target="_blank"，自动与仓库地址配对）；恢复 `pack-extension.mjs` 为原始 PowerShell-only 版本；版本同步 0.1.13
 
 ---
 
@@ -44,6 +45,8 @@
 | 13 | 版本号管理 | **`package.json` 单一事实来源 + `scripts/bump-version.mjs` 一键三处同步**（v0.1.7）——界面从 package.json 读取；bump 脚本同步 package.json / package-lock.json / deploy.sh 标签，杜绝版本号漂移复发 |
 | 14 | HttpOnly 凭证获取 | **Chrome 扩展 `webRequest.onBeforeSendHeaders` 观察模式**（v0.1.9 最终修复）——微信读书把 wr_vid/wr_skey/wr_rt 设为 HttpOnly，页面 JS 与书签均无法读取（硬限制）；v0.1.8 初用 `chrome.cookies` API 但实测返回集合与浏览器实际发送的 Cookie 头不一致（漏掉全部 `wr_*`/`ptcz`/`RK`），v0.1.9 改用 webRequest 直接观察浏览器真实发出的 Cookie 头（与 F12 严格同源，含 HttpOnly）——是本项目解决 curl_bash 登录凭证缺口的最终方案 |
 | 15 | 扩展分发 | **curl-helper 页面直接下载 ZIP + CRX**（v0.1.12）——ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证）；`scripts/pack-extension.mjs` 自动打包扩展为 zip |
+| 16 | API 并行加速 + 快捷操作重定位 | **`Promise.allSettled` 并行化 API 调用**（v0.1.13）——settings store 中 `refreshSecretStatus` 5 个 `secretExists` 并行检测 + `connectRepo` 中 `listWorkflows`/`fromGitHub` 并行加载（面板启动速度提升约 3-5 倍）；Dashboard 删除"快捷操作"卡片（"立即运行"重定位至配置页右上角、"配置"按钮冗余——侧边栏已有导航）；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧 |
+| 17 | 查看 Actions 快捷入口 | **RepoInput.vue 自动配对仓库地址**（v0.1.13）——Actions 工作流下拉框下方新增"📋 查看 Actions"链接（`<a>` 标签，`target="_blank"`），自动与当前仓库地址配对（`https://github.com/<owner>/<repo>/actions`），一键跳转查看运行历史 |
 
 ---
 
@@ -136,7 +139,7 @@ wxread-panel/
 │   ├── password-hash.mjs        # 生成密码门哈希（静默输入/环境变量，防泄漏）
 │   ├── build-bookmarklet.mjs    # esbuild 压缩 bookmarklet → 输出独立 min 文件（v0.1.8 起不再改 index.html）
 │   ├── bump-version.mjs         # 一键升级版本号（package.json/lock/deploy.sh 三处同步，v0.1.7）
-│   └── pack-extension.mjs       # 打包 chrome-extension/ 为 zip 到 public/curl-helper/（v0.1.12）
+│   └── pack-extension.mjs       # 打包 chrome-extension/ 为 zip 到 public/curl-helper/（v0.1.12；v0.1.13 恢复为 PowerShell-only 独立调用）
 ├── src/
 │   ├── main.ts                  # 入口
 │   ├── App.vue                  # 根组件：锁屏/侧边栏/路由视图 + 挂载时自动回读远程状态
@@ -145,7 +148,7 @@ wxread-panel/
 │   │   └── github.ts            # Octokit 封装 + 适配层 + sealed box 加密 + secretExists 存在性检测
 │   ├── stores/
 │   │   ├── auth.ts              # PAT 登录态（Pinia，localStorage 持久化）
-│   │   └── settings.ts          # 配置状态 + localStorage 持久化（记忆存储）+ 远程 Secrets 状态
+│   │   └── settings.ts          # 配置状态 + localStorage 持久化（记忆存储）+ 远程 Secrets 状态（v0.1.13 API 并行化加速）
 │   ├── utils/
 │   │   ├── schedule.ts          # 定时任务设置（localStorage）
 │   │   ├── sealedBox.ts         # libsodium 密封盒加密（crypto_box_seal）
@@ -158,15 +161,15 @@ wxread-panel/
 │   │   ├── LockScreen.vue       # 密码门解锁界面（可选）
 │   │   ├── Sidebar.vue
 │   │   └── config/
-│   │       ├── RepoInput.vue    # 仓库地址输入 + 自动检测
+│   │       ├── RepoInput.vue    # 仓库地址输入 + 自动检测 + 查看 Actions 按钮（v0.1.13，自动配对仓库地址）
 │   │       ├── LoginConfig.vue  # 微信读书接口（curl_bash 输入，watch 同步 store）
 │   │       ├── PushConfig.vue   # 推送方式 + 各平台 token
 │   │       ├── ReadConfig.vue   # 阅读时长（分钟 ↔ 次数）
 │   │       ├── ScheduleCard.vue # 定时任务设置（v0.1.4 从任务页并入配置页）
 │   │       └── CurlHelperCard.vue # 一键获取 curl_bash 引导（v0.1.5 从 LoginConfig 拆出，置定时任务后）
 │   └── views/
-│       ├── Dashboard.vue        # 运行状态（状态面板 + 横向最近运行：圆点+阅读时长 + 立即运行直接触发）
-│       ├── Config.vue           # 配置参数页（6 模块网格平铺，保存按钮右上角）
+│       ├── Dashboard.vue        # 运行状态（状态面板 + 横向最近运行：圆点+阅读时长；v0.1.13 删除快捷操作卡片）
+│       ├── Config.vue           # 配置参数页（6 模块网格平铺；v0.1.13 右上角"立即运行"+"保存全部配置"）
 │       └── Calendar.vue         # 运行日历（每月独立网格：1 号居首格、CSS Grid 均分铺满，v0.1.6）
 ├── tests/
 │   ├── api/github.test.ts       # 纯函数（URL/错误解析）6
@@ -265,13 +268,13 @@ GET /repos/{owner}/{repo}/actions/secrets/public-key
 ### 5.6 触发运行
 
 ```
-仪表盘"立即运行"（v0.1.4 起直接触发，不再跳转任务页）
+仪表盘"立即运行"（v0.1.13 移至配置页右上角，与"保存全部配置"同行）
   → dispatchWorkflow({ owner, repo, workflow_id, ref })
   → GitHub Actions 启动
   → 内联反馈（触发成功/失败）+ 3s 后刷新最近运行
 ```
 
-支持：立即运行（仪表盘快捷操作）、每日定时（配置页 ScheduleCard，面板记录偏好，实际 cron 在 wxread 仓库）。停止/删除运行随任务管理页移除（v0.1.4）。
+支持：立即运行（配置页右上角按钮，与"保存全部配置"同行，v0.1.13 从仪表盘重定位）、每日定时（配置页 ScheduleCard，面板记录偏好，实际 cron 在 wxread 仓库）。停止/删除运行随任务管理页移除（v0.1.4）。
 
 ### 5.7 curl_bash 获取（v0.1.8 起：Chrome 扩展为主）
 
@@ -476,7 +479,8 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 | **v0.1.9 扩展 cookie 获取根因修复** | ✅ 已部署（`2293c73`），webRequest.onBeforeSendHeaders 观察模式读真实 Cookie 头 + URL 补全 |
 | **v0.1.10 扩展弹窗常驻独立窗口** | ✅ 已部署（`a466e7d`），chrome.windows.create popup 类型（v0.1.11 已改为页面内浮动面板） |
 | **v0.1.11 扩展弹窗页面内浮动面板** | ✅ 已部署（`77cf1ef`），content-bridge 注入 Shadow DOM 面板 + action.onClicked 切换 |
-| **v0.1.12 扩展打包下载（推送部署中）** | ⏳ 已推送 `645f221`（ZIP + CRX 双下载按钮 + pack-extension.mjs），部署完成后待线上验证 |
+| **v0.1.12 扩展打包下载** | ✅ 已部署（`645f221`），ZIP + CRX 双下载按钮在线 + pack-extension.mjs |
+| **v0.1.13 API 并行加速 + 快捷操作重定位（推送部署中）** | ⏳ 已推送 `1a7fbdc`（Promise.allSettled 并行 API + 立即运行移至配置页右上角 + 查看 Actions 按钮），部署完成后待线上验证 |
 
 线上验证工具：
 - `verify-health.mjs` — 免 token 健康检查（入口/登录/守卫/curl-helper/bundle/favicon，任一失败退出码非 0）
@@ -515,4 +519,7 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] v0.1.10 扩展弹窗常驻独立窗口（chrome.windows.create）——已部署（v0.1.11 已改进为页面内浮动面板）
 - [x] v0.1.11 扩展弹窗改为页面内浮动面板：content-bridge 注入 Shadow DOM 面板（position: fixed 右上角，点击外部不消失，✕ 关闭按钮）+ action.onClicked 切换显隐——已部署验证
 - [x] v0.1.12 扩展打包下载：curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；`scripts/pack-extension.mjs` 自动打包；Chrome 安全限制记录（v33/44 起禁止 Windows/Mac 从本地 CRX 安装）；版本同步 0.1.12——已推送部署
+- [x] v0.1.13 API 并行加速：settings store `refreshSecretStatus` 5 个 `secretExists` + `connectRepo` 中 `listWorkflows`/`fromGitHub` 并行加载（Promise.allSettled，面板启动速度提升约 3-5 倍）；版本同步 0.1.13——已推送部署
+- [x] v0.1.13 快捷操作重定位：Dashboard 删除"快捷操作"卡片；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧——已推送部署
+- [x] v0.1.13 查看 Actions 按钮：RepoInput.vue Actions 工作流下拉框下方新增"📋 查看 Actions"链接（自动配对仓库地址，一键跳转运行历史）——已推送部署
 - [ ] wxread 升级自诊断 banner（设计项，未实施）
