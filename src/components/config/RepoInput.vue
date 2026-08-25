@@ -1,7 +1,7 @@
 <template>
   <div class="card"><div class="card-title">项目接口</div>
     <div class="form-group"><label class="form-label">仓库地址</label>
-      <div class="input-group"><input v-model="url" class="form-input" placeholder="https://github.com/rudofski/wxread" @keyup.enter="connect" /><button class="btn btn-primary" @click="connect" :disabled="status === 'connecting'">{{ status === 'connecting' ? '检测中...' : '🔍 检测连接' }}</button></div>
+      <div class="input-group"><input v-model="url" class="form-input" placeholder="https://github.com/rudofski/wxread" @keyup.enter="connect" /><button class="btn btn-primary" @click="connect" :disabled="status === 'connecting'">{{ status === 'connecting' ? '检测中...' : '检测连接' }}</button></div>
     </div>
     <div v-if="status === 'connected'" class="status-msg ok">🟢 {{ message }}</div>
     <div v-else-if="status === 'error'" class="status-msg error">🔴 {{ message }}</div>
