@@ -26,14 +26,6 @@
       </div>
       <div v-else class="empty">该日期没有运行记录</div>
     </div>
-    <div class="card">
-      <div class="card-title">统计</div>
-      <div class="stats-grid">
-        <div class="stat-item ok"><div class="stat-value">{{ stats.success }}</div><div class="stat-label">成功</div></div>
-        <div class="stat-item error"><div class="stat-value">{{ stats.failure }}</div><div class="stat-label">失败</div></div>
-        <div class="stat-item"><div class="stat-value">{{ stats.rate }}%</div><div class="stat-label">成功率</div></div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -77,16 +69,6 @@ const monthGroups = computed<CalendarMonthBlock[]>(() =>
 );
 
 const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.weeks.length, 0));
-
-const stats = computed(() => {
-  let success = 0, failure = 0;
-  for (const [, v] of dayMap.value) {
-    if (v.s === 'success') success++;
-    else if (v.s === 'failure') failure++;
-  }
-  const total = success + failure;
-  return { success, failure, rate: total > 0 ? Math.round((success / total) * 100) : 100 };
-});
 
 const statusText = computed(() => {
   const st = selectedDetail.value?.status;
@@ -159,11 +141,4 @@ onMounted(loadData);
 .text-running { color: var(--color-primary); }
 .text-idle { color: #9aa0a6; }
 .text-error { color: var(--color-danger); }
-.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-.stat-item { text-align: center; padding: 16px; border-radius: 8px; background: #f9f9f9; }
-.stat-value { font-size: 32px; font-weight: 700; }
-.stat-item.ok .stat-value { color: var(--color-success); }
-.stat-item.error .stat-value { color: var(--color-danger); }
-.stat-item .stat-value { color: var(--color-primary); }
-.stat-label { font-size: 14px; color: var(--color-text-light); }
 </style>

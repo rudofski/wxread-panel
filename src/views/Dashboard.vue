@@ -27,6 +27,24 @@
       </div>
     </div>
 
+    <div class="card">
+      <div class="card-title">📅 运行日历</div>
+      <div class="contrib-scroll">
+        <div class="contrib">
+          <div class="contrib-body" :style="{ '--total-cols': totalCols }">
+            <div v-for="(group, gi) in monthGroups" :key="gi" class="month-group" :style="{ '--cols': group.weeks.length }">
+              <div class="group-label">{{ MONTHS[group.month] }}</div>
+              <div class="group-weeks">
+                <div v-for="(week, wi) in group.weeks" :key="wi" class="week-col">
+                  <div v-for="(cell, ci) in week" :key="ci" class="contrib-cell" :class="'cell-' + cell.s" :title="cell.title"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -34,8 +52,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { listWorkflowRuns, type RunInfo } from '@/api/github';
-import { groupRunsByLocalDay, daysForWidth } from '@/utils/runGrouping';
-import { classifyRun } from '@/utils/runStatus';
+import { groupRunsByLocalDay, daysForWidth, localDateKey } from '@/utils/runGrouping';
+import { classifyRun, pickDayStatus } from '@/utils/runStatus';
+import { buildMonthBlocks, type CalendarMonthBlock, type DayStatus } from '@/utils/calendarGrid';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
@@ -96,8 +115,41 @@ async function loadRecentRuns() {
   catch {} finally { loadingRuns.value = false; }
 }
 
+async function loadCalendarRuns() {
+  if (!settings.repoInfo) return;
+  try { calRuns.value = await listWorkflowRuns(settings.repoInfo.owner, settings.repoInfo.repo, settings.selectedWorkflowId, 365); }
+  catch {}
+}
+
+// ---- 运行日历（与 Calendar.vue 同源逻辑）----
+const calRuns = ref<RunInfo[]>([]);
+const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
+
+const calDayMap = computed(() => {
+  const byDay = new Map<string, RunInfo[]>();
+  for (const run of calRuns.value) {
+    const date = localDateKey(run.run_started_at || run.created_at);
+    if (!byDay.has(date)) byDay.set(date, []);
+    byDay.get(date)!.push(run);
+  }
+  const map = new Map<string, DayStatus>();
+  for (const [date, dayRuns] of byDay) {
+    const win = pickDayStatus(dayRuns)!;
+    const s = classifyRun(win);
+    map.set(date, { s });
+  }
+  return map;
+});
+
+const monthGroups = computed<CalendarMonthBlock[]>(() =>
+  buildMonthBlocks(new Date().getFullYear(), calDayMap.value, new Date()),
+);
+
+const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.weeks.length, 0));
+
 onMounted(() => {
   loadRecentRuns();
+  loadCalendarRuns();
   window.addEventListener('resize', onResize);
 });
 onUnmounted(() => { window.removeEventListener('resize', onResize); });
@@ -122,4 +174,23 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 .run-time { color: var(--color-text-light); font-size: 11px; }
 .run-duration { font-size: 11px; color: var(--color-text-light); }
 .run-empty { text-align: center; color: #ddd; font-size: 12px; }
+
+/* 运行日历（与 Calendar.vue 一致） */
+.contrib-scroll { overflow-x: auto; }
+.contrib { width: 100%; min-width: 720px; }
+.contrib-body { display: grid; grid-template-columns: repeat(var(--total-cols), minmax(0, 1fr)); gap: 3px; }
+.month-group { grid-column: span var(--cols); display: flex; flex-direction: column; }
+.month-group + .month-group { border-left: 2px solid rgba(0, 0, 0, 0.1); padding-left: 4px; }
+.group-label { height: 22px; line-height: 22px; font-size: 12px; font-weight: 600; color: var(--color-text-light); white-space: nowrap; }
+.group-weeks { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 3px; }
+.week-col { display: flex; flex-direction: column; gap: 3px; }
+.contrib-cell { aspect-ratio: 1 / 1; border-radius: 3px; }
+.cell-success { background: #216e39; }
+.cell-failure { background: #cf222e; }
+.cell-running { background: var(--color-primary); animation: cell-pulse 1s ease-in-out infinite; }
+.cell-idle { background: #9aa0a6; }
+@keyframes cell-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.cell-empty { background: #ebedf0; }
+.cell-future { background: transparent; border: 1px solid #ebedf0; }
+.cell-blank { background: transparent; }
 </style>

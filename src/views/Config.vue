@@ -64,8 +64,4 @@ async function save() {
   gap: 16px;
   align-items: stretch;
 }
-/* 缩短卡片高度与内部间距，让所有模块在一屏内尽量可见 */
-.config-grid :deep(.card) { margin-bottom: 0; padding: 12px 14px; }
-.config-grid :deep(.form-group) { margin-bottom: 8px; }
-.config-grid :deep(.form-textarea) { min-height: 0; }
 </style>
