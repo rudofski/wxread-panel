@@ -3,8 +3,8 @@
     <div class="config-header">
       <h2 class="page-title">⚙️ 配置参数</h2>
       <div class="header-actions">
-        <button class="btn btn-primary" @click="runNow" :disabled="running || !settings.repoInfo">{{ running ? '运行中...' : '▶ 立即运行' }}</button>
         <button class="btn btn-primary" @click="save" :disabled="saving">{{ saving ? '保存中...' : '💾 保存全部配置' }}</button>
+        <button class="btn btn-primary" @click="runNow" :disabled="running || !settings.repoInfo">{{ running ? '运行中...' : '▶ 立即运行' }}</button>
         <span v-if="saveMsg" class="save-msg" :class="saveOk ? 'ok' : 'error'">{{ saveMsg }}</span>
       </div>
     </div>

@@ -80,9 +80,9 @@ const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.we
 
 const stats = computed(() => {
   let success = 0, failure = 0;
-  for (const run of runs.value) {
-    if (run.conclusion === 'success') success++;
-    else if (run.conclusion === 'failure') failure++;
+  for (const [, v] of dayMap.value) {
+    if (v.s === 'success') success++;
+    else if (v.s === 'failure') failure++;
   }
   const total = success + failure;
   return { success, failure, rate: total > 0 ? Math.round((success / total) * 100) : 100 };
