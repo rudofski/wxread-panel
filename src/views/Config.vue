@@ -51,7 +51,7 @@ async function save() {
 </script>
 
 <style scoped>
-.config-page { max-width: 100%; }
+.config-page { max-width: 100%; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
 .config-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
 .config-header .page-title { margin: 0; }
 .header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
@@ -59,9 +59,10 @@ async function save() {
 .save-msg.ok { color: var(--color-success); }
 .save-msg.error { color: var(--color-danger); }
 .config-grid {
+  flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 16px;
-  align-items: stretch;
+  grid-auto-rows: 1fr;
 }
 </style>
