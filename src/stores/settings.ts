@@ -90,16 +90,19 @@ export const useSettingsStore = defineStore('settings', () => {
       repoInfo.value = parsed;
       repoStatus.value = 'connected';
       repoMessage.value = result.message;
-      try {
-        const wfList = await listWorkflows(parsed.owner, parsed.repo);
-        workflows.value = wfList;
-        if (wfList.length > 0) selectedWorkflowId.value = wfList[0].id;
-      } catch {}
-      try {
-        const settings = await wxreadAdapter.fromGitHub(parsed.owner, parsed.repo);
-        readMinutes.value = settings.readMinutes;
-        if (settings.pushMethod) pushMethod.value = settings.pushMethod;
-      } catch {}
+      // 并行加载工作流列表、配置变量、Secrets 状态（显著加快面板启动）
+      const [wfList, remoteSettings] = await Promise.allSettled([
+        listWorkflows(parsed.owner, parsed.repo),
+        wxreadAdapter.fromGitHub(parsed.owner, parsed.repo),
+      ]);
+      if (wfList.status === 'fulfilled' && wfList.value.length > 0) {
+        workflows.value = wfList.value;
+        selectedWorkflowId.value = wfList.value[0].id;
+      }
+      if (remoteSettings.status === 'fulfilled') {
+        readMinutes.value = remoteSettings.value.readMinutes;
+        if (remoteSettings.value.pushMethod) pushMethod.value = remoteSettings.value.pushMethod;
+      }
       await refreshSecretStatus();
     } else { repoStatus.value = 'error'; repoMessage.value = result.message; }
   }
@@ -121,13 +124,12 @@ export const useSettingsStore = defineStore('settings', () => {
     if (!repoInfo.value) return;
     const names = ['WXREAD_CURL_BASH', 'WXPUSHER_SPT', 'PUSHPLUS_TOKEN', 'TELEGRAM_BOT_TOKEN', 'SERVERCHAN_SPT'];
     const status: Record<string, boolean> = {};
-    for (const n of names) {
-      try {
-        status[n] = await secretExists(repoInfo.value.owner, repoInfo.value.repo, n);
-      } catch {
-        status[n] = false;
-      }
-    }
+    const info = repoInfo.value; // 提前取出，避免 TS 在 Promise.allSettled 回调中报 null
+    // 并行检测所有 Secrets（每个 secretExists 一次 API 调用，并行后只等一次网络往返）
+    const results = await Promise.allSettled(
+      names.map(n => secretExists(info.owner, info.repo, n))
+    );
+    names.forEach((n, i) => { status[n] = results[i].status === 'fulfilled' ? results[i].value : false; });
     remoteSecrets.value = status;
   }
 

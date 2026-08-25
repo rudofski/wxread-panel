@@ -27,31 +27,19 @@
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">⏱️ 快捷操作</div>
-      <div class="quick-actions">
-        <button class="btn btn-primary" :disabled="running || !settings.repoInfo" @click="runNow">{{ running ? '运行中...' : '▶ 立即运行' }}</button>
-        <span v-if="!settings.repoInfo" class="hint">请先在配置页连接仓库</span>
-        <span v-if="runMsg" class="save-msg" :class="runOk ? 'ok' : 'error'">{{ runMsg }}</span>
-        <button class="btn btn-default" @click="$router.push('/config')">⚙️ 配置</button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
-import { dispatchWorkflow, listWorkflowRuns, type RunInfo } from '@/api/github';
+import { listWorkflowRuns, type RunInfo } from '@/api/github';
 import { groupRunsByLocalDay, daysForWidth } from '@/utils/runGrouping';
 import { classifyRun } from '@/utils/runStatus';
 
 const settings = useSettingsStore();
 const runs = ref<RunInfo[]>([]);
 const loadingRuns = ref(false);
-const running = ref(false);
-const runMsg = ref('');
-const runOk = ref(true);
 
 const repoClass = computed(() => settings.repoStatus === 'connected' ? 'ok' : settings.repoStatus === 'connecting' ? 'warning' : 'error');
 const repoStatusText = computed(() => {
@@ -108,18 +96,6 @@ async function loadRecentRuns() {
   catch {} finally { loadingRuns.value = false; }
 }
 
-async function runNow() {
-  if (!settings.repoInfo || running.value) return;
-  running.value = true; runMsg.value = '';
-  try {
-    await dispatchWorkflow(settings.repoInfo.owner, settings.repoInfo.repo, settings.selectedWorkflowId);
-    runMsg.value = '✅ 任务已触发'; runOk.value = true;
-    setTimeout(loadRecentRuns, 3000);
-  } catch (e: any) {
-    runMsg.value = `❌ ${e.message}`; runOk.value = false;
-  } finally { running.value = false; }
-}
-
 onMounted(() => {
   loadRecentRuns();
   window.addEventListener('resize', onResize);
@@ -146,9 +122,4 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 .run-time { color: var(--color-text-light); font-size: 11px; }
 .run-duration { font-size: 11px; color: var(--color-text-light); }
 .run-empty { text-align: center; color: #ddd; font-size: 12px; }
-.quick-actions { display: flex; align-items: center; gap: 12px; }
-.hint { font-size: 13px; color: var(--color-text-light); }
-.save-msg { font-size: 13px; }
-.save-msg.ok { color: var(--color-success); }
-.save-msg.error { color: var(--color-danger); }
 </style>

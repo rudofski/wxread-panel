@@ -3,6 +3,7 @@
     <div class="config-header">
       <h2 class="page-title">⚙️ 配置参数</h2>
       <div class="header-actions">
+        <button class="btn btn-primary" @click="runNow" :disabled="running || !settings.repoInfo">{{ running ? '运行中...' : '▶ 立即运行' }}</button>
         <button class="btn btn-primary" @click="save" :disabled="saving">{{ saving ? '保存中...' : '💾 保存全部配置' }}</button>
         <span v-if="saveMsg" class="save-msg" :class="saveOk ? 'ok' : 'error'">{{ saveMsg }}</span>
       </div>
@@ -26,9 +27,21 @@ import PushConfig from '@/components/config/PushConfig.vue';
 import ReadConfig from '@/components/config/ReadConfig.vue';
 import ScheduleCard from '@/components/config/ScheduleCard.vue';
 import CurlHelperCard from '@/components/config/CurlHelperCard.vue';
+import { dispatchWorkflow } from '@/api/github';
 import { useSettingsStore } from '@/stores/settings';
 const settings = useSettingsStore();
 const saving = ref(false), saveMsg = ref(''), saveOk = ref(true);
+const running = ref(false);
+async function runNow() {
+  if (!settings.repoInfo || running.value) return;
+  running.value = true; saveMsg.value = '';
+  try {
+    await dispatchWorkflow(settings.repoInfo.owner, settings.repoInfo.repo, settings.selectedWorkflowId);
+    saveMsg.value = '✅ 任务已触发'; saveOk.value = true;
+  } catch (e: any) {
+    saveMsg.value = `❌ ${e.message}`; saveOk.value = false;
+  } finally { running.value = false; }
+}
 async function save() {
   saving.value = true; saveMsg.value = '';
   try { await settings.saveConfig(); saveMsg.value = '✅ 配置已保存'; saveOk.value = true; }

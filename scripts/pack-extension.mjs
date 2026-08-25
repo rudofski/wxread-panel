@@ -19,8 +19,8 @@ for (const f of files) {
 }
 
 // 用 PowerShell Compress-Archive 创建 zip
-const psSrc = `'${tmp}\\*'`.replace(/\\/g, '\\');
-const psDst = `'${zipPath}'`.replace(/\\/g, '\\');
+const psSrc = `'${tmp}\\*'`.replace(/\\/g, '\\\\');
+const psDst = `'${zipPath}'`.replace(/\\/g, '\\\\');
 const cmd = `powershell.exe -NoProfile -Command "Compress-Archive -Path ${psSrc} -DestinationPath ${psDst} -Force"`;
 try {
   execSync(cmd, { stdio: 'pipe' });
