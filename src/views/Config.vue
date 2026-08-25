@@ -62,7 +62,7 @@ async function save() {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
+  gap: 24px;
   grid-auto-rows: 1fr;
 }
 </style>

@@ -157,7 +157,8 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 
 <style scoped>
 .dashboard { max-width: 100%; }
-.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.dashboard > .card { margin-bottom: 24px; }
+.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 24px; }
 .status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 /* 横向铺满；窄屏时横向滚动兜底，每列保证可读（最新日期不截断） */
 .runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
