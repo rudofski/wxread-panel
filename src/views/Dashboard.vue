@@ -27,7 +27,7 @@
       </div>
     </div>
 
-    <div class="card card-calendar">
+    <div class="card">
       <div class="card-title">📅 运行日历</div>
       <div class="contrib-scroll">
         <div class="contrib">
@@ -156,8 +156,8 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 </script>
 
 <style scoped>
-.dashboard { max-width: 100%; display: flex; flex-direction: column; min-height: calc(100vh - 48px); gap: 16px; }
-.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.dashboard { max-width: 100%; }
+.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 /* 横向铺满；窄屏时横向滚动兜底，每列保证可读（最新日期不截断） */
 .runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
@@ -193,8 +193,4 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 .cell-empty { background: #ebedf0; }
 .cell-future { background: transparent; border: 1px solid #ebedf0; }
 .cell-blank { background: transparent; }
-
-.card-calendar { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-.card-calendar > .card-title { flex-shrink: 0; }
-.card-calendar > .contrib-scroll { flex: 1; min-height: 0; }
 </style>
