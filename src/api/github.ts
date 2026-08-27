@@ -95,6 +95,15 @@ export async function listWorkflows(owner: string, repo: string): Promise<Workfl
   return (resp.data.workflows || []).map(w => ({ id: w.id, name: w.name || w.path, path: w.path }));
 }
 
+export async function listDashboardRunsByRepo(owner: string, repo: string, perPage: number = 365): Promise<RunInfo[]> {
+  const client = getOctokit();
+  const resp = await client.rest.actions.listWorkflowRunsForRepo({ owner, repo, per_page: perPage });
+  return (resp.data.workflow_runs || []).map(r => ({
+    id: r.id, name: r.name || '', status: r.status || '', conclusion: r.conclusion || null,
+    created_at: r.created_at, updated_at: r.updated_at, run_started_at: r.run_started_at ?? null,
+  }));
+}
+
 export async function dispatchWorkflow(owner: string, repo: string, workflowId: string | number, ref: string = 'main'): Promise<void> {
   const client = getOctokit();
   await client.rest.actions.createWorkflowDispatch({ owner, repo, workflow_id: workflowId as any, ref });
