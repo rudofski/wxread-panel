@@ -114,6 +114,11 @@ export async function listWorkflowRuns(owner: string, repo: string, workflowId: 
   }));
 }
 
+// 仪表盘的最近运行与日历使用同一批数据，避免分别请求 50/365 条记录。
+export async function listDashboardRuns(owner: string, repo: string, workflowId: string | number): Promise<RunInfo[]> {
+  return listWorkflowRuns(owner, repo, workflowId, 365);
+}
+
 // 运行日志：workflow run 的 logs 接口返回 zip 二进制，不便解析；
 // 改为取该 run 的第一个 job，走 job logs 纯文本接口。
 export async function getRunLogs(owner: string, repo: string, runId: number): Promise<string> {

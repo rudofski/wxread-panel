@@ -51,7 +51,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
-import { listWorkflowRuns, type RunInfo } from '@/api/github';
+import { listDashboardRuns, type RunInfo } from '@/api/github';
 import { groupRunsByLocalDay, daysForWidth, localDateKey } from '@/utils/runGrouping';
 import { classifyRun, pickDayStatus } from '@/utils/runStatus';
 import { buildMonthBlocks, type CalendarMonthBlock, type DayStatus } from '@/utils/calendarGrid';
@@ -108,17 +108,18 @@ function formatDuration(run: RunInfo): string {
   return s > 0 ? `${m}分${s}秒` : `${m}分钟`;
 }
 
-async function loadRecentRuns() {
+async function loadRuns() {
   if (!settings.repoInfo) return;
   loadingRuns.value = true;
-  try { runs.value = await listWorkflowRuns(settings.repoInfo.owner, settings.repoInfo.repo, settings.selectedWorkflowId, 50); }
-  catch {} finally { loadingRuns.value = false; }
-}
-
-async function loadCalendarRuns() {
-  if (!settings.repoInfo) return;
-  try { calRuns.value = await listWorkflowRuns(settings.repoInfo.owner, settings.repoInfo.repo, settings.selectedWorkflowId, 365); }
-  catch {}
+  try {
+    const data = await listDashboardRuns(
+      settings.repoInfo.owner,
+      settings.repoInfo.repo,
+      settings.selectedWorkflowId,
+    );
+    runs.value = data.slice(0, 50);
+    calRuns.value = data;
+  } catch {} finally { loadingRuns.value = false; }
 }
 
 // ---- 运行日历（与 Calendar.vue 同源逻辑）----
@@ -148,8 +149,7 @@ const monthGroups = computed<CalendarMonthBlock[]>(() =>
 const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.weeks.length, 0));
 
 onMounted(() => {
-  loadRecentRuns();
-  loadCalendarRuns();
+  loadRuns();
   window.addEventListener('resize', onResize);
 });
 onUnmounted(() => { window.removeEventListener('resize', onResize); });
