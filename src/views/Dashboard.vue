@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
 import { listDashboardRuns, type RunInfo } from '@/api/github';
 import { groupRunsByLocalDay, daysForWidth, localDateKey } from '@/utils/runGrouping';
@@ -108,7 +108,10 @@ function formatDuration(run: RunInfo): string {
   return s > 0 ? `${m}分${s}秒` : `${m}分钟`;
 }
 
+let runLoadRequestId = 0;
+
 async function loadRuns() {
+  const requestId = ++runLoadRequestId;
   if (!settings.repoInfo || settings.selectedWorkflowId === '') return;
   loadingRuns.value = true;
   try {
@@ -117,6 +120,7 @@ async function loadRuns() {
       settings.repoInfo.repo,
       settings.selectedWorkflowId,
     );
+    if (requestId !== runLoadRequestId) return;
     runs.value = data.slice(0, 50);
     calRuns.value = data;
   } catch {} finally { loadingRuns.value = false; }
@@ -149,8 +153,15 @@ const monthGroups = computed<CalendarMonthBlock[]>(() =>
 const totalCols = computed(() => monthGroups.value.reduce((sum, g) => sum + g.weeks.length, 0));
 
 onMounted(() => {
-  loadRuns();
+  const stop = watch(
+    () => [settings.repoInfo, settings.selectedWorkflowId] as const,
+    ([repoInfo, workflowId]) => {
+      if (repoInfo && workflowId !== '') loadRuns();
+    },
+    { immediate: true },
+  );
   window.addEventListener('resize', onResize);
+  onUnmounted(stop);
 });
 onUnmounted(() => { window.removeEventListener('resize', onResize); });
 </script>

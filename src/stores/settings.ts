@@ -86,6 +86,9 @@ export const useSettingsStore = defineStore('settings', () => {
     repoUrl.value = url;
     repoStatus.value = 'connecting';
     repoMessage.value = '';
+    repoInfo.value = parseRepoUrl(url);
+    workflows.value = [];
+    selectedWorkflowId.value = '';
     const parsed = parseRepoUrl(url);
     if (!parsed) { repoStatus.value = 'error'; repoMessage.value = '无效的 GitHub 仓库地址'; return; }
     const result = await detectRepo(url);
