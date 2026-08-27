@@ -79,7 +79,10 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const readCount = computed(() => readMinutes.value * 2);
 
+  let connectRequestId = 0;
+
   async function connectRepo(url: string) {
+    const requestId = ++connectRequestId;
     repoUrl.value = url;
     repoStatus.value = 'connecting';
     repoMessage.value = '';
@@ -87,6 +90,7 @@ export const useSettingsStore = defineStore('settings', () => {
     if (!parsed) { repoStatus.value = 'error'; repoMessage.value = '无效的 GitHub 仓库地址'; return; }
     const result = await detectRepo(url);
     if (result.ok) {
+      if (requestId !== connectRequestId) return;
       repoInfo.value = parsed;
       repoStatus.value = 'connected';
       repoMessage.value = result.message;
@@ -103,8 +107,12 @@ export const useSettingsStore = defineStore('settings', () => {
         readMinutes.value = remoteSettings.value.readMinutes;
         if (remoteSettings.value.pushMethod) pushMethod.value = remoteSettings.value.pushMethod;
       }
-      await refreshSecretStatus();
-    } else { repoStatus.value = 'error'; repoMessage.value = result.message; }
+      // Secrets 仅用于状态卡展示，不阻塞工作流与运行记录加载。
+      void refreshSecretStatus();
+    } else {
+      if (requestId !== connectRequestId) return;
+      repoStatus.value = 'error'; repoMessage.value = result.message;
+    }
   }
 
   async function saveConfig() {

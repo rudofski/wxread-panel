@@ -109,7 +109,7 @@ function formatDuration(run: RunInfo): string {
 }
 
 async function loadRuns() {
-  if (!settings.repoInfo) return;
+  if (!settings.repoInfo || settings.selectedWorkflowId === '') return;
   loadingRuns.value = true;
   try {
     const data = await listDashboardRuns(
