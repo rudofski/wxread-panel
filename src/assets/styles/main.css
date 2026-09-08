@@ -16,12 +16,22 @@
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--color-bg); color: var(--color-text); font-size: 14px; line-height: 1.6;
+  /* 兜底：任何模块内部的横向溢出都不得产生页面级滚动条 */
+  overflow-x: clip;
 }
-.app-layout { display: flex; min-height: 100vh; }
-.app-main { flex: 1; margin-left: var(--sidebar-width); padding: 24px 32px; }
+.app-layout { display: flex; min-height: 100vh; min-width: 0; }
+.app-main { flex: 1; min-width: 0; margin-left: var(--sidebar-width); padding: 24px 32px; }
 .card {
   background: var(--color-card); border-radius: var(--radius); padding: 20px;
   margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  min-width: 0;
+}
+/* 响应式：低分辨率下自动收缩，内容区不被固定 200px 侧边栏挤压 */
+@media (max-width: 1024px) {
+  .app-main { padding: 20px 16px; }
+}
+@media (max-width: 768px) {
+  :root { --sidebar-width: 56px; }
 }
 .card-title {
   font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px;

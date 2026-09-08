@@ -51,17 +51,19 @@ async function save() {
 </script>
 
 <style scoped>
-.config-page { max-width: 100%; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
-.config-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.config-page { max-width: 100%; min-width: 0; display: flex; flex-direction: column; min-height: calc(100vh - 48px); }
+.config-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .config-header .page-title { margin: 0; }
-.header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.header-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; flex-wrap: wrap; }
 .save-msg { font-size: 13px; }
 .save-msg.ok { color: var(--color-success); }
 .save-msg.error { color: var(--color-danger); }
 .config-grid {
   flex: 1;
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  /* min(340px, 100%)：容器小于 340px 时退化为 100%，防止单列溢出 */
+  grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr));
   gap: 24px;
   grid-auto-rows: 1fr;
 }

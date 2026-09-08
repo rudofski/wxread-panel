@@ -164,9 +164,10 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 </script>
 
 <style scoped>
-.dashboard { max-width: 100%; display: flex; flex-direction: column; gap: 24px; }
-.dashboard > .card { margin-bottom: 0; }
-.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.dashboard { max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
+.dashboard > .card { margin-bottom: 0; min-width: 0; }
+/* auto-fit：窄屏自动降为 2 列 / 1 列，不再强制三列挤压 */
+.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
 .status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
 /* 横向铺满；窄屏时横向滚动兜底，每列保证可读（最新日期不截断） */
 .runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
@@ -184,8 +185,9 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 .run-duration { font-size: 11px; color: var(--color-text-light); }
 .run-empty { text-align: center; color: #ddd; font-size: 12px; }
 
-/* 运行日历（与 Calendar.vue 一致） */
-.contrib-scroll { overflow-x: auto; }
+/* 运行日历（与 Calendar.vue 一致）：min-width 720px 保证每列可读，
+   在卡片内横向滚动（父级 min-width: 0 约束），不再撑破页面产生整页滚动条 */
+.contrib-scroll { overflow-x: auto; max-width: 100%; }
 .contrib { width: 100%; min-width: 720px; }
 .contrib-body { display: grid; grid-template-columns: repeat(var(--total-cols), minmax(0, 1fr)); gap: 3px; }
 .month-group { grid-column: span var(--cols); display: flex; flex-direction: column; }
