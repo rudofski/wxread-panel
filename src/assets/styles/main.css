@@ -26,12 +26,9 @@ body {
   margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
   min-width: 0;
 }
-/* 响应式：低分辨率下自动收缩，内容区不被固定 200px 侧边栏挤压 */
+/* 响应式：低分辨率下仅压缩内边距，布局结构不变（不降列、不滚动、侧边栏固定） */
 @media (max-width: 1024px) {
   .app-main { padding: 20px 16px; }
-}
-@media (max-width: 768px) {
-  :root { --sidebar-width: 56px; }
 }
 .card-title {
   font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px;

@@ -166,15 +166,17 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 <style scoped>
 .dashboard { max-width: 100%; min-width: 0; display: flex; flex-direction: column; gap: 24px; }
 .dashboard > .card { margin-bottom: 0; min-width: 0; }
-/* auto-fit：窄屏自动降为 2 列 / 1 列，不再强制三列挤压 */
-.status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; }
-.status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; }
-/* 横向铺满；窄屏时横向滚动兜底，每列保证可读（最新日期不截断） */
-.runs-axis { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
-.run-day { flex: 1 1 0; min-width: 78px; border-radius: 6px; background: #f9f9f9; padding: 8px; }
+/* 三卡片恒一行：窄屏时 1fr 自动缩短卡片宽度（内容省略号兜底），不降列 */
+.status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.status-card .status-body { display: flex; align-items: center; gap: 8px; font-size: 15px; min-width: 0; }
+.status-card .status-body span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 横向铺满：列数由 daysForWidth 按宽度降数量（7/10/14 天），列宽随容器自适应收缩 */
+.runs-axis { display: flex; gap: 8px; padding-bottom: 4px; }
+.run-day { flex: 1 1 0; min-width: 0; border-radius: 6px; background: #f9f9f9; padding: 8px; }
 .run-day-label { text-align: center; font-size: 12px; color: var(--color-text-light); padding-bottom: 6px; border-bottom: 1px solid var(--color-border); margin-bottom: 6px; white-space: nowrap; }
 .run-day-body { display: flex; flex-direction: column; gap: 6px; min-height: 24px; }
-.run-item { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
+/* 窄列时时间/时长允许换行，保证信息完整显示 */
+.run-item { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 6px; font-size: 12px; }
 .run-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .run-dot.ok { background: var(--color-success); }
 .run-dot.error { background: var(--color-danger); }
@@ -185,10 +187,9 @@ onUnmounted(() => { window.removeEventListener('resize', onResize); });
 .run-duration { font-size: 11px; color: var(--color-text-light); }
 .run-empty { text-align: center; color: #ddd; font-size: 12px; }
 
-/* 运行日历（与 Calendar.vue 一致）：min-width 720px 保证每列可读，
-   在卡片内横向滚动（父级 min-width: 0 约束），不再撑破页面产生整页滚动条 */
-.contrib-scroll { overflow-x: auto; max-width: 100%; }
-.contrib { width: 100%; min-width: 720px; }
+/* 运行日历（与 Calendar.vue 一致）：去掉固定最小宽度，格子随容器宽度等比缩放匹配页面 */
+.contrib-scroll { max-width: 100%; }
+.contrib { width: 100%; }
 .contrib-body { display: grid; grid-template-columns: repeat(var(--total-cols), minmax(0, 1fr)); gap: 3px; }
 .month-group { grid-column: span var(--cols); display: flex; flex-direction: column; }
 .month-group + .month-group { border-left: 2px solid rgba(0, 0, 0, 0.1); padding-left: 4px; }

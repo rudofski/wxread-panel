@@ -50,14 +50,4 @@ function logout() {
 .sidebar-footer { padding: 16px 20px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 12px; color: rgba(255,255,255,0.4); }
 .logout-btn { margin-top: 8px; background: none; border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.6); padding: 4px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
 .logout-btn:hover { background: rgba(255,255,255,0.1); }
-/* 低分辨率：侧边栏收窄为图标栏，释放内容区宽度 */
-@media (max-width: 768px) {
-  .sidebar-logo { font-size: 0; padding: 16px 0; }
-  .sidebar-logo::before { content: '📖'; font-size: 20px; }
-  .nav-item { justify-content: center; gap: 0; padding: 12px 0; }
-  .nav-label { display: none; }
-  .sidebar-footer { padding: 12px 4px; }
-  .version { font-size: 10px; }
-  .logout-btn { font-size: 10px; padding: 3px 6px; }
-}
 </style>
