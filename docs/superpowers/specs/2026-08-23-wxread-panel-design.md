@@ -1,8 +1,8 @@
 # wxread-panel 扩展辅助工程设计文档
 
-> 版本：v0.1.13  \
-> 日期：2026-08-25  \
-> 对应提交：`1a7fbdc`  \
+> 版本：v0.1.20  \
+> 日期：2026-09-08  \
+> 对应提交：`f9ba7e9`  \
 > 关联仓库：[rudofski/wxread](https://github.com/rudofski/wxread/)  \
 > v0.1.1 变更：移除书城搜索与 Cloudflare Worker 代理；认证改为纯 PAT；热力图改自绘实现  \
 > v0.1.2 变更：Secrets 加密根因修复（tweetnacl 随机 nonce → libsodium `crypto_box_seal`）；新增可选密码门；线上保存配置验证通过（422 错误消失）  \
@@ -16,7 +16,14 @@
 > v0.1.10 变更：**扩展弹窗常驻**——点击扩展图标打开独立窗口（`chrome.windows.create` popup 类型），不随点击外部消失  
 > v0.1.11 变更：**扩展弹窗改为页面内浮动面板**——移除独立窗口，`content-bridge.js` 注入浮动面板到页面 DOM（Shadow DOM 隔离样式），`position: fixed` 右上角，点击页面其他位置不消失，右上角 ✕ 关闭按钮；`background.js` `action.onClicked` 改为发 `toggle-panel` 消息切换面板显隐  
 > v0.1.12 变更：**扩展打包下载 + Chrome 安全限制记录**——curl-helper 页面方式一下方新增 ZIP + CRX 双下载按钮；ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；新增 `scripts/pack-extension.mjs` 自动打包扩展为 zip；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证），CRX 仅 Chromium/Edge 可用  \
-> v0.1.13 变更：**API 并行加速 + 快捷操作重定位 + 查看Actions 按钮**——settings store 中 `refreshSecretStatus` 5 个 `secretExists` 改为 `Promise.allSettled` 并行检测 + `connectRepo` 中 `listWorkflows`/`fromGitHub` 改为 `Promise.allSettled` 并行加载（面板启动速度提升约 3-5 倍）；Dashboard 删除"快捷操作"卡片（"立即运行"/"配置"按钮）；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧；RepoInput.vue Actions 工作流下拉框下方新增"📋 查看 Actions"链接（`<a>` 标签，target="_blank"，自动与仓库地址配对）；恢复 `pack-extension.mjs` 为原始 PowerShell-only 版本；版本同步 0.1.13
+> v0.1.13 变更：**API 并行加速 + 快捷操作重定位 + 查看Actions 按钮**——settings store 中 `refreshSecretStatus` 5 个 `secretExists` 改为 `Promise.allSettled` 并行检测 + `connectRepo` 中 `listWorkflows`/`fromGitHub` 改为 `Promise.allSettled` 并行加载（面板启动速度提升约 3-5 倍）；Dashboard 删除"快捷操作"卡片（"立即运行"/"配置"按钮）；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧；RepoInput.vue Actions 工作流下拉框下方新增"📋 查看 Actions"链接（`<a>` 标签，target="_blank"，自动与仓库地址配对）；恢复 `pack-extension.mjs` 为原始 PowerShell-only 版本；版本同步 0.1.13  \
+> v0.1.14 变更：**配置页按钮位置互换 + 日历统计改为格子计数**——"💾 保存全部配置"移至左侧首位、"▶ 立即运行"移至右侧；Calendar 统计失败数不再遍历 `runs` 结论字段（同一天多次失败被反复计数），改为从 `dayMap`（与日历格子同源的 `pickDayStatus` 成功优先 + `classifyRun` 四档判定）计数，每天最多算一条，与格子显示颜色完全一致  \
+> v0.1.15 变更：**运行日历嵌入仪表盘 + 删除统计模块**——Dashboard "最近运行"下方新增运行日历热力图（365 天、12 个月独立网格，逻辑与 Calendar.vue 完全同源：`pickDayStatus` 成功优先 + `classifyRun` 四档颜色 + `localDateKey` 本地时区），独立加载 365 条运行记录互不阻塞；Calendar.vue 删除统计卡片（成功/失败/成功率）；配置页卡片移除压缩 CSS 恢复 Vite 默认 padding 20px 自然铺满  \
+> v0.1.16 变更：**移除运行日历页面 + 配置页 flex 撑满**——`router.ts` 删除 `/calendar` 路由、Sidebar 删除"📅 运行日历"导航项（侧边栏只剩运行状态/配置参数；Calendar.vue 源码保留仓库，构建时 tree-shake 不占产物）；`.config-page` 改 `flex` 纵向填满视口（`min-height: calc(100vh - 48px)`）+ `.config-grid` 加 `flex: 1` 与 `grid-auto-rows: 1fr`，剩余高度由所有行均分，卡片等高撑满页面  \
+> v0.1.17 变更：**运行状态页布局调整**——Dashboard flex 纵向撑满 + 日历卡片 `flex: 1` 拉伸（后被用户要求撤销，恢复自然高度堆叠，仅统一模块间距 24px）  \
+> v0.1.18 变更：**仪表盘共享运行记录请求**——最近运行（50 条）与运行日历（365 条）此前两次独立串行请求，改为只请求一次 365 条、最近运行复用前 50 条 + 日历复用完整数据，减少一次 GitHub API 往返  \
+> v0.1.19 变更：**响应式布局防横向溢出（第一版，后被 v0.1.20 修正）**——`app-main`/卡片 `min-width: 0` 解除 flex 收缩限制、`body overflow-x: clip` 兜底、日历 `min-width: 720px` 在卡片内横向滚动、状态卡片 auto-fit 降列、≤768px 侧边栏收窄为图标栏；用户反馈要求布局结构不变，v0.1.20 重做为压缩式适配  \
+> v0.1.20 变更：**低分辨率压缩式适配（最终方案）**——撤销重排式适配（状态卡片降列、日历/最近运行卡片内横向滚动、侧边栏收窄），布局在任何分辨率下结构不变：三卡片恒一行（`repeat(3, 1fr)`，内容省略号兜底）、日历完整显示不滚动、最近运行不滚动、侧边栏固定 200px；≤1024px 改为压缩式适配——状态卡片 `1fr` 缩短宽度、最近运行天数由 `daysForWidth` 降数量（<900px 7 天 / <1280px 10 天 / 其余 14 天）且列宽自适应收缩（列内时间/时长换行）、日历去掉固定 `min-width: 720px` 随容器等比缩放匹配页面宽度；测试计数 78 未变（纯样式改动）
 
 ---
 
@@ -47,6 +54,7 @@
 | 15 | 扩展分发 | **curl-helper 页面直接下载 ZIP + CRX**（v0.1.12）——ZIP（推荐，Windows/Mac Chrome 唯一可靠方式：下载→解压→开发者模式加载）、CRX（Chromium/Edge 可拖拽安装）；Chrome 从 v33/44 起禁止 Windows/Mac 从本地 CRX 安装扩展（官方文档 + 2025 社区实证）；`scripts/pack-extension.mjs` 自动打包扩展为 zip |
 | 16 | API 并行加速 + 快捷操作重定位 | **`Promise.allSettled` 并行化 API 调用**（v0.1.13）——settings store 中 `refreshSecretStatus` 5 个 `secretExists` 并行检测 + `connectRepo` 中 `listWorkflows`/`fromGitHub` 并行加载（面板启动速度提升约 3-5 倍）；Dashboard 删除"快捷操作"卡片（"立即运行"重定位至配置页右上角、"配置"按钮冗余——侧边栏已有导航）；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧 |
 | 17 | 查看 Actions 快捷入口 | **RepoInput.vue 自动配对仓库地址**（v0.1.13）——Actions 工作流下拉框下方新增"📋 查看 Actions"链接（`<a>` 标签，`target="_blank"`），自动与当前仓库地址配对（`https://github.com/<owner>/<repo>/actions`），一键跳转查看运行历史 |
+| 18 | 低分辨率适配策略 | **压缩式适配（v0.1.20 最终方案）**——布局结构在任何分辨率下不变（三卡片恒一行、日历完整显示、最近运行不滚动、侧边栏固定 200px）；≤1024px 仅压缩内容：状态卡片 `1fr` 缩短宽度（文字省略号兜底）、最近运行天数随宽度降数量（`daysForWidth`：<900px 7 天 / <1280px 10 天 / 其余 14 天，列宽自适应收缩、列内时间/时长换行）、日历去掉固定 `min-width: 720px` 随容器等比缩放；辅以 `min-width: 0` 收缩链 + `body overflow-x: clip` 防整页横向滚动条；v0.1.19 曾尝试重排式适配（降列/卡片内滚动/侧边栏收窄）被用户否决后废弃 |
 
 ---
 
@@ -143,7 +151,7 @@ wxread-panel/
 ├── src/
 │   ├── main.ts                  # 入口
 │   ├── App.vue                  # 根组件：锁屏/侧边栏/路由视图 + 挂载时自动回读远程状态
-│   ├── router.ts                # 路由定义 + 登录态守卫
+│   ├── router.ts                # 路由定义 + 登录态守卫（v0.1.16 移除 /calendar 路由，仅剩运行状态/配置参数）
 │   ├── api/
 │   │   └── github.ts            # Octokit 封装 + 适配层 + sealed box 加密 + secretExists 存在性检测
 │   ├── stores/
@@ -156,7 +164,7 @@ wxread-panel/
 │   │   ├── curlBuilder.ts       # 捕获请求 → 完整 curl 命令（书签/扩展内联版的可测试参照，v0.1.5）
 │   │   ├── calendarGrid.ts      # 运行日历网格纯函数（每月独立网格、1 号居首格，v0.1.6）
 │   │   ├── runStatus.ts         # 运行状态统一分类（success/failure/running/idle）+ 成功优先选择（v0.1.7/0.1.8）
-│   │   └── runGrouping.ts       # 最近运行按本地时区归组 + 响应式天数（v0.1.7）
+│   │   └── runGrouping.ts       # 最近运行按本地时区归组 + 响应式天数（v0.1.7；v0.1.20 列宽自适应收缩支撑压缩式适配）
 │   ├── components/
 │   │   ├── LockScreen.vue       # 密码门解锁界面（可选）
 │   │   ├── Sidebar.vue
@@ -167,10 +175,9 @@ wxread-panel/
 │   │       ├── ReadConfig.vue   # 阅读时长（分钟 ↔ 次数）
 │   │       ├── ScheduleCard.vue # 定时任务设置（v0.1.4 从任务页并入配置页）
 │   │       └── CurlHelperCard.vue # 一键获取 curl_bash 引导（v0.1.5 从 LoginConfig 拆出，置定时任务后）
-│   └── views/
-│       ├── Dashboard.vue        # 运行状态（状态面板 + 横向最近运行：圆点+阅读时长；v0.1.13 删除快捷操作卡片）
-│       ├── Config.vue           # 配置参数页（6 模块网格平铺；v0.1.13 右上角"立即运行"+"保存全部配置"）
-│       └── Calendar.vue         # 运行日历（每月独立网格：1 号居首格、CSS Grid 均分铺满，v0.1.6）
+│   └── views/│   ├── Dashboard.vue        # 运行状态（状态面板三卡片恒一行 + 最近运行 + 内嵌运行日历；v0.1.13 删快捷操作卡片；v0.1.15 内嵌日历；v0.1.18 共享一次 365 条请求；v0.1.20 压缩式适配）
+│   ├── Config.vue           # 配置参数页（6 模块网格平铺；v0.1.14 右上角"保存全部配置"+"立即运行"互换；v0.1.16 flex 撑满视口）
+│   └── Calendar.vue         # 运行日历独立页（v0.1.16 移除路由/导航，源码保留供参考；仪表盘内嵌版为 v0.1.15）
 ├── tests/
 │   ├── api/github.test.ts       # 纯函数（URL/错误解析）6
 │   ├── api/github-api.test.ts   # mock Octokit 交互测试（含 secretExists）10
@@ -214,7 +221,8 @@ wxread-panel/
 
 - **全宽内容区**：保留左侧固定导航（仪表盘/配置参数/运行日历），各页面移除 `max-width` 限制，内容撑满剩余宽度
 - **仪表盘（v0.1.5 改名"运行状态"）**：移除"控制入口"卡片；最近运行以**日期为横轴**（左早右近），每日一列、列内竖向排列该日多条记录，列容器 `flex:1` 横向铺满；每条记录**只显示圆点状态图标**（绿=成功/红=失败/蓝脉冲=运行中/灰=取消·跳过·超时）+ 时间 + **阅读时长**（运行耗时 updated_at − run_started_at），不显示项目名与状态文字
-- **日期归组与响应式（v0.1.7）**：日期 key 与时间显示**同源（本地时区）**，修复凌晨运行（UTC 深夜 = 本地次日凌晨）被归到前一天的问题；横轴天数随窗口宽度响应（<900px 取 7 天 / <1280px 取 10 天 / 其余 14 天），窄屏时列 `min-width` + 横向滚动，最新日期永不截断
+- **日期归组与响应式（v0.1.7，v0.1.20 压缩式适配）**：日期 key 与时间显示**同源（本地时区）**，修复凌晨运行（UTC 深夜 = 本地次日凌晨）被归到前一天的问题；横轴天数随窗口宽度响应（`daysForWidth`：<900px 取 7 天 / <1280px 取 10 天 / 其余 14 天）；v0.1.20 起窄屏不再横向滚动——列 `min-width: 0` 自适应收缩平分容器宽度，列内时间/时长 `flex-wrap` 换行保证信息完整，最新日期永不截断
+- **低分辨率压缩式适配（v0.1.20）**：布局结构在任何分辨率下不变——三状态卡片恒一行（`repeat(3, 1fr)`，状态文字 `text-overflow: ellipsis` 兜底）、日历完整显示不滚动（去掉 `min-width: 720px`，格子随容器等比缩放）、侧边栏固定 200px；≤1024px 仅 `.app-main` 内边距 32px→16px；`min-width: 0` 收缩链 + `body overflow-x: clip` 防整页横向滚动条
 - **配置页（v0.1.5）**：6 模块网格平铺（项目接口/微信读书接口/推送接口/阅读设置/定时任务/一键获取 curl_bash）；保存按钮移至**页面右上角**（与标题同行）；卡片 padding/间距收紧使全部模块一屏可见
 - **任务管理移除**：Tasks 页/路由/导航删除，定时任务并入配置页（ScheduleCard）
 
@@ -312,8 +320,8 @@ chrome-extension/（MV3，host weread.qq.com + qq.com）
 ### 5.8 运行日历（每月独立网格，v0.1.6 重写；四档统一 v0.1.7；成功优先 v0.1.8）
 
 ```
-Calendar.vue 加载
-  → listWorkflowRuns({ per_page: 365 })
+Dashboard 加载（v0.1.15 起内嵌仪表盘，v0.1.16 移除独立页/路由/导航）
+  → listDashboardRunsByRepo({ per_page: 365 })  ← v0.1.18 起最近运行与日历共享同一次请求（前 50 条复用）
   → dayMap：按本地时区 localDateKey 归日收集**当日全部**运行记录
       → pickDayStatus（v0.1.8）：当日**只要有任意一条成功即显示成功**；无任何成功才取时间最新一条
       → classifyRun(选中记录)：success → 绿 / failure → 红 / running → 蓝脉冲 / idle(取消·跳过·超时) → 灰
@@ -325,7 +333,7 @@ Calendar.vue 加载
       → 所有格子统一大小、随窗口缩放，整个日历铺满显示区域
       月份块间以分隔线 + 留白区分；月份标签置于块顶
   → 点击格子 → 当日运行详情（与 dayMap 同一"成功优先"选择）；失败日期异步拉取 job 纯文本日志 → parseRunError 提取中文原因
-  → 统计：成功 / 失败 / 成功率
+  → 统计：成功 / 失败 / 成功率（v0.1.15 起删除，统计随独立日历页移除）
 ```
 
 - **布局语义**（v0.1.6）：不按万年历的星期对齐，每月 1 号固定位于该月第一个格子，纯顺序填充；每列 7 格（列 = 周概念，但不对应星期几），12 个月块横排，总列数（2026 年为 59）由 `--total-cols` CSS 变量传入 Grid
@@ -333,6 +341,8 @@ Calendar.vue 加载
 - **状态同步**（v0.1.7）：状态判定收敛到 `classifyRun`（success=绿 / failure=红 / running=蓝脉冲 / idle=灰）——与运行状态圆点共用同一函数；图例同步 5 项（无记录/成功/失败/运行中/已取消）。历史语义"非失败即绿"（v0.1.6）把 cancelled/skipped/timed_out 也显示为绿，与 Dashboard 灰点不一致，v0.1.7 修正为四档
 - **成功优先**（v0.1.8）：`pickDayStatus` 选择当日任意一条成功（优先于"最后一条"），无成功才取最新——例如某天先失败后成功、或先成功后失败，格子都显示成功（绿）；图例标注移除（`runStatus.ts` TDD 10 测试，含 5 个 pickDayStatus）
 - 网格生成逻辑沉淀为 `src/utils/calendarGrid.ts`（纯函数，TDD 6 测试）；状态分类与成功优先 `src/utils/runStatus.ts`（TDD 10 测试）；日期归组 `src/utils/runGrouping.ts`（TDD 7 测试）
+- **v0.1.15 嵌入仪表盘**：Dashboard "最近运行"下方直接渲染日历热力图（逻辑与 Calendar.vue 完全同源），独立加载互不阻塞；日历格子移除 cursor/click 交互（仪表盘只读展示）
+- **v0.1.20 压缩式适配**：日历容器去掉固定 `min-width: 720px` 与横向滚动，格子（`aspect-ratio: 1/1`）随容器宽度等比缩放，低分辨率下完整显示匹配页面宽度
 
 ---
 
@@ -428,7 +438,7 @@ const wxreadAdapter = {
 | 密码门测试 | 启用/禁用、哈希校验、24h 解锁态 | Vitest | 6 |
 | E2E 冒烟 | 登录跳转 / token 输入 / 无 OAuth 按钮 | Playwright | 4 |
 
-合计 **78** 个单元测试 + 4 个 E2E（v0.1.5 起 curl 构建扩展至 11：含 resolveUrl 相对 URL 补全、browserHeaders 浏览器自动头；v0.1.6 新增日历网格 6 个；v0.1.7 新增本地时区归组 7 个 + 状态分类 5 个；v0.1.8 新增成功优先选择 5 个）。组件层未单独引入测试框架（`@vue/test-utils` 未使用），组件行为由 E2E 冒烟覆盖。
+合计 **78** 个单元测试 + 4 个 E2E（v0.1.5 起 curl 构建扩展至 11：含 resolveUrl 相对 URL 补全、browserHeaders 浏览器自动头；v0.1.6 新增日历网格 6 个；v0.1.7 新增本地时区归组 7 个 + 状态分类 5 个；v0.1.8 新增成功优先选择 5 个）。v0.1.14~v0.1.20 均为 UI/布局/性能改动，无新增测试，计数保持 78。组件层未单独引入测试框架（`@vue/test-utils` 未使用），组件行为由 E2E 冒烟覆盖。
 
 ### 9.2 关键测试用例
 
@@ -480,7 +490,14 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 | **v0.1.10 扩展弹窗常驻独立窗口** | ✅ 已部署（`a466e7d`），chrome.windows.create popup 类型（v0.1.11 已改为页面内浮动面板） |
 | **v0.1.11 扩展弹窗页面内浮动面板** | ✅ 已部署（`77cf1ef`），content-bridge 注入 Shadow DOM 面板 + action.onClicked 切换 |
 | **v0.1.12 扩展打包下载** | ✅ 已部署（`645f221`），ZIP + CRX 双下载按钮在线 + pack-extension.mjs |
-| **v0.1.13 API 并行加速 + 快捷操作重定位（推送部署中）** | ⏳ 已推送 `1a7fbdc`（Promise.allSettled 并行 API + 立即运行移至配置页右上角 + 查看 Actions 按钮），部署完成后待线上验证 |
+| **v0.1.13 API 并行加速 + 快捷操作重定位** | ✅ 已部署（`1a7fbdc`），Promise.allSettled 并行 API + 立即运行移至配置页右上角 + 查看 Actions 按钮 |
+| **v0.1.14 按钮互换 + 日历统计格子计数** | ✅ 已部署（`183b03c`），保存全部配置/立即运行互换 + 统计与日历格子同源 |
+| **v0.1.15 日历嵌入仪表盘 + 删统计** | ✅ 已部署（`65623b5`），仪表盘内嵌运行日历 + Calendar 独立页删除统计卡片 |
+| **v0.1.16 移除日历独立页 + 配置页撑满** | ✅ 已部署（`cac30a3`），/calendar 路由与导航移除 + config-grid flex 均分撑满视口 |
+| **v0.1.17 仪表盘布局调整** | ✅ 已部署（`32d0ef0`），恢复自然高度堆叠，模块间距统一 24px（flex 撑满方案按用户要求撤销） |
+| **v0.1.18 共享运行记录请求** | ✅ 已部署（`b8bba8b`），最近运行与日历共享一次 365 条请求 |
+| **v0.1.19 响应式防溢出第一版** | ✅ 已部署（`6cced7a`），min-width:0 链 + 卡片内滚动 + 侧边栏收窄（v0.1.20 已按用户要求改为压缩式适配） |
+| **v0.1.20 低分辨率压缩式适配** | ⏳ 已推送 `f9ba7e9`（三卡片恒一行 + 最近运行降天数 + 日历等比缩放，布局结构不变），部署完成后待线上验证 |
 
 线上验证工具：
 - `verify-health.mjs` — 免 token 健康检查（入口/登录/守卫/curl-helper/bundle/favicon，任一失败退出码非 0）
@@ -522,4 +539,11 @@ checkout → setup-node(20) → npm ci → npm run build（vue-tsc + vite，注�
 - [x] v0.1.13 API 并行加速：settings store `refreshSecretStatus` 5 个 `secretExists` + `connectRepo` 中 `listWorkflows`/`fromGitHub` 并行加载（Promise.allSettled，面板启动速度提升约 3-5 倍）；版本同步 0.1.13——已推送部署
 - [x] v0.1.13 快捷操作重定位：Dashboard 删除"快捷操作"卡片；Config.vue 右上角"▶ 立即运行"按钮移至"💾 保存全部配置"左侧——已推送部署
 - [x] v0.1.13 查看 Actions 按钮：RepoInput.vue Actions 工作流下拉框下方新增"📋 查看 Actions"链接（自动配对仓库地址，一键跳转运行历史）——已推送部署
+- [x] v0.1.14 配置页按钮互换："保存全部配置"移至左侧首位、"立即运行"移至右侧；日历统计失败数改为从 dayMap 格子计数（与格子颜色同源，每天最多一条）——已部署
+- [x] v0.1.15 运行日历嵌入仪表盘（最近运行下方，逻辑与 Calendar.vue 同源）+ Calendar 独立页删除统计模块 + 配置页卡片恢复自然铺满——已部署
+- [x] v0.1.16 移除运行日历独立页（router/导航删除，Calendar.vue 源码保留）+ 配置页 `.config-grid` flex:1 + grid-auto-rows:1fr 撑满视口——已部署
+- [x] v0.1.17 运行状态页模块间距统一 24px（恢复自然高度堆叠，不强制拉伸）——已部署
+- [x] v0.1.18 仪表盘共享运行记录请求：最近运行（50 条）与运行日历（365 条）合并为一次 `listDashboardRunsByRepo` 请求——已部署
+- [x] v0.1.19 响应式防横向溢出：`min-width: 0` 收缩链 + `body overflow-x: clip` + 日历卡片内滚动 + ≤768px 侧边栏图标栏——已部署（v0.1.20 按用户要求改为压缩式适配）
+- [x] v0.1.20 低分辨率压缩式适配（最终方案）：布局结构不变（三卡片恒一行、日历完整显示不滚动、侧边栏固定 200px），≤1024px 压缩内容——状态卡片缩短宽度（省略号兜底）、最近运行降天数（7/10/14）且列宽自适应收缩、日历去 `min-width: 720px` 随容器等比缩放；单测 78 + E2E 4 未变——已推送部署
 - [ ] wxread 升级自诊断 banner（设计项，未实施）
