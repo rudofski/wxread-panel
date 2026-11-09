@@ -10,6 +10,46 @@ wxread 微信读书刷时长的 Web 控制面板，基于 GitHub Pages 部署，
 - 📅 **运行日历** — 热力图展示运行状态与成功率
 - 🔄 **自动对接** — wxread 变量名变更时自动兼容（`READ_NUM` ↔ `READ_MINUTES`）
 - 💾 **记忆存储 + wxread 回读** — 配置自动保存在浏览器（localStorage），重开面板自动恢复仓库地址并回读远程真实状态（README 变量与 Secrets 存在性），仪表盘不再误显"未配置"
+- 🛡️ **Actions 守护** — 配置页实时显示「Actions 工作流正常 / 已停用」与「推送接口正常」；本仓库自带 `wxread-guard` 工作流，每天 04:45 预检、05:30 复查补跑、12:00 巡检告警
+
+## Actions 守护（防止 wxread 定时任务被 GitHub 停用）
+
+fork 出来的仓库长期无活动时，GitHub 会把它的 workflows 置为 `disabled_manually`，Actions 页面提示
+`Workflows aren't being run on this forked repository`，定时任务从此静默失效。wxread 的 `keepalive-job`
+只能防「60 天无活动」，防不住这种情况，所以要有一个外部守护——它必须放在 **panel 仓库**里，
+放在 wxread 里会跟着被守护对象一起停用，等于没有。
+
+`wxread-guard` 每天的职责（GitHub cron 是 UTC，下表已换算北京时间）：
+
+| 时间 | 模式 | 做什么 |
+| --- | --- | --- |
+| 04:45 | `preflight` | wxread 05:00 定时前，若工作流 state 不是 `active` → `PUT .../enable`，2 秒后复核 |
+| 05:30 | `all` | 过了 60 分钟宽限仍无运行 → `workflow_dispatch` 补跑；同时判一次告警 |
+| 12:00 | `inspect` | 当天仍无成功运行 → 走 wxread 的四通道推送发出异常报告 |
+
+去重状态存在本仓库的 Actions Variable `GUARD_STATE`（JSON），同一天不会重复补跑、重复告警。
+
+### 一次配置（只需做一遍）
+
+在 **wxread-panel** 仓库 → Settings → Secrets and variables → Actions：
+
+1. **Secret** `WXREAD_GUARD_PAT`：细粒度 PAT，Repository access 选 `rudofski/wxread`，
+   权限 `Actions: Read and write`（读工作流状态、enable、dispatch 都要它；`GITHUB_TOKEN` 跨仓库无效）。
+2. **Secret** 推送通道，键名与 wxread 完全一致（任选其一）：
+   `PUSH_METHOD` + 对应的 `WXPUSHER_SPT` / `PUSHPLUS_TOKEN` / `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` / `SERVERCHAN_SPT`。
+3. **Variable**（可选，不配用默认值）：`WXREAD_REPO`=rudofski/wxread、`WXREAD_WORKFLOW`=deploy.yml、
+   `WXREAD_REF`=main、`WXREAD_SCHEDULED_HOUR`=5、`WXREAD_GRACE_MIN`=60、`WXREAD_INSPECT_HOUR`=12。
+
+配完到 Actions → wxread-guard → Run workflow，`mode` 选 `check` 验证凭证能读通（只读，不派发不推送）。
+
+### 本地体检
+
+```bash
+WXREAD_GUARD_PAT=ghp_xxx node scripts/guard/main.mjs --mode check    # 只读：打印工作流状态与今日运行
+WXREAD_GUARD_PAT=ghp_xxx node scripts/guard/main.mjs --mode all --dry-run  # 打印完整决策，不写状态
+```
+
+退出码：`0` 正常、`2` 需要人工介入（enable 未被接受、补跑失败）、`1` 运行出错。
 
 ## 登录方式
 
