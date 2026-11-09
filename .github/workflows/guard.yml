@@ -1,0 +1,143 @@
+# wxread 守护工作流。
+#
+# 背景：wxread 是 fork 出来的仓库，GitHub 会在「fork + 长期无活动」时把它的
+# workflows 置为 disabled_manually，表现为 Actions 页面提示
+# "Workflows aren't being run on this forked repository"，必须手工点击
+# "I understand my workflows, go ahead and enable them" 才会恢复。
+#
+# 本工作流跑在 wxread-panel 仓库里（不放 wxread，否则会跟着被守护对象一起停用）：
+#   1. 04:45 预检：wxread 05:00 定时任务前，若工作流被停用则启用；
+#   2. 05:30 复查：宽限 60 分钟后今天还没有任何运行 → 触发 workflow_dispatch 补跑；
+#   3. 12:00 巡检：今天仍无成功运行 → 通过 wxread 的四通道推送接口发出异常报告。
+#
+# 需要的仓库配置（repo → Settings → Secrets and variables → Actions）：
+#   Secret  WXREAD_GUARD_PAT  细粒度 PAT，权限 Actions: Read and write（目标仓库 wxread）
+#   Variable WXREAD_REPO      rudofski/wxread              可选，默认同值
+#   Variable WXREAD_WORKFLOW  deploy.yml                   可选
+#   Variable WXREAD_REF       main                         可选
+# 推送复用 wxread 的渠道配置（都在 wxread 仓库里），这里从 panel 仓库读取：
+#   Secret  PUSH_METHOD / WXPUSHER_SPT / PUSHPLUS_TOKEN /
+#           TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID / SERVERCHAN_SPT
+
+name: wxread-guard
+
+on:
+  schedule:
+    # GitHub cron 一律 UTC，换算北京时间（UTC+8）：
+    - cron: '45 20 * * *' # 04:45 预检 + 启用
+    - cron: '30 21 * * *' # 05:30 复查 + 补跑
+    - cron: '0 4 * * *'   # 12:00 巡检 + 告警
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '运行模式：auto / preflight / inspect / all / check'
+        required: false
+        default: 'auto'
+        type: choice
+        options: [auto, preflight, inspect, all, check]
+      dry_run:
+        description: '只打印计划，不写状态、不派发、不推送'
+        required: false
+        default: false
+        type: boolean
+
+# 三次触发可能重叠（补跑很慢时尤其如此）：串行排队，绝不取消正在跑的那次，
+# 否则可能出现「补跑被 12:00 巡检取消」的假异常。
+concurrency:
+  group: wxread-guard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: 检查并守护 wxread Actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出守护脚本
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 选择运行模式
+        id: pick
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ github.event.inputs.mode }}
+          INPUT_DRY: ${{ github.event.inputs.dry_run }}
+        run: |
+          # 定时触发按 UTC 小时区分三段职责；手动触发用输入值（默认 auto）
+          HOUR=$(date -u +%H)
+          MINUTE=$(date -u +%M)
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$INPUT_MODE" ]; then
+            # 手动触发：只听输入，不做时间推断
+            MODE="$INPUT_MODE"
+          elif [ "$HOUR" = "20" ]; then
+            # 04:45  预检：只要被停用就启用，不补跑（还没到计划点）
+            MODE="preflight"
+          elif [ "$HOUR" = "21" ]; then
+            # 05:30  复查：过了 60 分钟宽限还没运行 → 补跑；同时判一次告警，避免 12:00 那次被跳过
+            MODE="all"
+          elif [ "$HOUR" = "04" ]; then
+            # 12:00  巡检：今日无成功运行 → 推送异常报告
+            MODE="inspect"
+          else
+            MODE="auto"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "dry=$INPUT_DRY" >> "$GITHUB_OUTPUT"
+          echo "本次模式：$MODE（UTC ${HOUR}:${MINUTE}）"
+
+      - name: 执行守护
+        id: guard
+        continue-on-error: true
+        env:
+          WXREAD_GUARD_PAT: ${{ secrets.WXREAD_GUARD_PAT }}
+          WXREAD_REPO: ${{ vars.WXREAD_REPO || 'rudofski/wxread' }}
+          WXREAD_WORKFLOW: ${{ vars.WXREAD_WORKFLOW || 'deploy.yml' }}
+          WXREAD_REF: ${{ vars.WXREAD_REF || 'main' }}
+          WXREAD_SCHEDULED_HOUR: ${{ vars.WXREAD_SCHEDULED_HOUR || '5' }}
+          WXREAD_GRACE_MIN: ${{ vars.WXREAD_GRACE_MIN || '60' }}
+          WXREAD_INSPECT_HOUR: ${{ vars.WXREAD_INSPECT_HOUR || '12' }}
+          PUSH_METHOD: ${{ secrets.PUSH_METHOD }}
+          WXPUSHER_SPT: ${{ secrets.WXPUSHER_SPT }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SERVERCHAN_SPT: ${{ secrets.SERVERCHAN_SPT }}
+        run: |
+          ARGS="--mode ${{ steps.pick.outputs.mode }}"
+          if [ "${{ steps.pick.outputs.dry }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          set +e
+          node scripts/guard/main.mjs $ARGS
+          CODE=$?
+          if [ "$CODE" -ne 0 ]; then
+            echo "::error::守护脚本退出码 $CODE（0=正常 2=需人工 1=运行出错）"
+            exit "$CODE"
+          fi
+
+      - name: 汇总
+        if: always()
+        env:
+          OUTCOME: ${{ steps.guard.outcome }}
+          MODE: ${{ steps.pick.outputs.mode }}
+        run: |
+          echo "### wxread 守护结果" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 模式：\`$MODE\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 结果：\`$OUTCOME\`（success=无需人工，failure=需要人工介入）" >> "$GITHUB_STEP_SUMMARY"
+          echo "- wxread Actions：https://github.com/rudofski/wxread/actions" >> "$GITHUB_STEP_SUMMARY"
+
+      # 退出码 2 = 需要人工（例如 enable 未被 GitHub 接受）：让 job 变红，GitHub 会发失败邮件，
+      # 同时微信侧也已收到异常报告，两条通知互为兜底。
+      - name: 需要人工介入时标记失败
+        if: steps.guard.outcome == 'failure'
+        run: |
+          echo "守护脚本返回非 0：请查看上方日志与 wxread Actions 页面" >&2
+          exit 1
