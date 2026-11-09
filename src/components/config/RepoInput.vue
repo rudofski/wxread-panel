@@ -7,6 +7,7 @@
     <div v-else-if="status === 'error'" class="status-msg error">🔴 {{ message }}</div>
     <div v-if="status === 'connected' && workflows.length > 0" class="form-group"><label class="form-label">Actions 工作流（自动发现）</label>
       <select v-model="selectedWf" class="form-select"><option v-for="wf in workflows" :key="wf.id" :value="wf.id">{{ wf.name }} ({{ wf.path }})</option></select>
+      <div class="status-msg" :class="wfView.ok ? 'ok' : 'error'">{{ wfView.text }}</div>
       <a :href="actionsUrl" target="_blank" class="btn btn-default actions-link">📋 查看 Actions</a>
     </div>
   </div>
@@ -15,6 +16,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
+import { describeWorkflowState } from '@/utils/workflowStatus';
 
 const settings = useSettingsStore();
 const url = ref(settings.repoUrl);
@@ -22,6 +24,8 @@ const status = ref(settings.repoStatus);
 const message = ref(settings.repoMessage);
 const workflows = ref(settings.workflows);
 const selectedWf = ref(settings.selectedWorkflowId);
+// 工作流状态位：与「🟢 已连接 owner/repo」同样式，异常时转红并给出 Enable 提示
+const wfView = computed(() => describeWorkflowState(settings.workflowState, settings.workflowStateError));
 // 自动与仓库地址配对，打开对应仓库的 Actions 页面
 const actionsUrl = computed(() => {
   if (!settings.repoInfo) return '#';

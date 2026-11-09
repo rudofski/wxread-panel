@@ -7,13 +7,17 @@
     <div v-if="method_ === 'pushplus'" class="form-group"><label class="form-label">PUSHPLUS_TOKEN</label><input v-model="pushplusToken" type="password" class="form-input" /></div>
     <div v-if="method_ === 'telegram'" class="form-group"><label class="form-label">TELEGRAM_BOT_TOKEN</label><input v-model="tgBotToken" type="text" class="form-input" /><label class="form-label">TELEGRAM_CHAT_ID</label><input v-model="tgChatId" type="text" class="form-input" /></div>
     <div v-if="method_ === 'serverchan'" class="form-group"><label class="form-label">SERVERCHAN_SPT</label><input v-model="serverchanToken" type="password" class="form-input" /></div>
+    <div class="status-msg" :class="pushView.status === 'ok' ? 'ok' : 'error'">{{ pushView.text }}</div>
   </div>
 </template>
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
+import { evaluatePushStatus } from '@/utils/pushStatus';
 const settings = useSettingsStore();
 const method_ = ref(settings.pushMethod);
+// 推送接口状态位：只校验远程 Secrets 是否齐全（不实发消息）
+const pushView = computed(() => evaluatePushStatus(settings.pushMethod, settings.remoteSecrets));
 const token = ref(settings.wxpusherToken);
 const pushplusToken = ref(settings.pushplusToken), tgBotToken = ref(settings.tgBotToken), tgChatId = ref(settings.tgChatId), serverchanToken = ref(settings.serverchanToken);
 watch(method_, v => { settings.pushMethod = v; });
@@ -26,4 +30,7 @@ watch(serverchanToken, v => { settings.serverchanToken = v; });
 <style scoped>
 .radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
 .radio-item { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 14px; }
+.status-msg { padding: 8px 12px; border-radius: 6px; margin-top: 8px; font-size: 13px; }
+.status-msg.ok { background: #f6ffed; color: var(--color-success); }
+.status-msg.error { background: #fff2f0; color: var(--color-danger); }
 </style>
