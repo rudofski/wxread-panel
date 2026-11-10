@@ -5,6 +5,9 @@
 
 export const PUSH_RETRY_DELAYS_MS = [5000, 20000, 60000];
 export const DEFAULT_CONTENT_MAX = 3000;
+// 中文经 encodeURIComponent 会膨胀到 9~12 倍（3 字节 → 12 个字符），
+// 放 URL path 的渠道必须按「编码后长度」封顶，否则长报告直接 414。
+export const WXPUSHER_ENCODED_MAX = 6000;
 
 const DEFAULT_TITLE = '微信阅读-异常';
 
@@ -12,6 +15,43 @@ function truncate(content, maxLen) {
   const text = String(content ?? '');
   if (!maxLen || text.length <= maxLen) return text;
   return text.slice(0, maxLen) + '…';
+}
+
+/** 按编码后长度封顶（URL path 渠道专用） */
+export function truncateForUrl(content, maxEncoded = WXPUSHER_ENCODED_MAX) {
+  const text = String(content ?? '');
+  if (encodeURIComponent(text).length <= maxEncoded) return text;
+  let out = text;
+  while (out.length > 1 && encodeURIComponent(out).length > maxEncoded) {
+    out = out.slice(0, Math.max(1, Math.floor(out.length * 0.9)));
+  }
+  return out + '…';
+}
+
+/**
+ * 判定「HTTP 200 但业务失败」。wxpusher/pushplus/serverchan 都是 200 + code 错误码，
+ * 只看 res.ok 会把「token 失效」记成已告警，当天彻底不再重试。
+ */
+export function isBusinessSuccess(channel, bodyText) {
+  let payload;
+  try {
+    payload = JSON.parse(String(bodyText ?? ''));
+  } catch {
+    return true; // 非 JSON（TELEGRAM 之外的一般不会是），按 HTTP 状态判断
+  }
+  if (!payload || typeof payload !== 'object') return true;
+  switch (channel) {
+    case 'wxpusher':
+      return payload.code === 1000;
+    case 'pushplus':
+      return payload.code === 200;
+    case 'serverchan':
+      return payload.code === 0;
+    case 'telegram':
+      return payload.ok === true;
+    default:
+      return true;
+  }
 }
 
 function asSnapshot(creds) {
@@ -44,7 +84,7 @@ export function buildPushRequest({ method, content, title, creds, maxLen = DEFAU
   if (channel === 'wxpusher') {
     if (!c.WXPUSHER_SPT) return null;
     return {
-      url: `https://wxpusher.zjiecode.com/api/send/message/${c.WXPUSHER_SPT}/${encodeURIComponent(text)}`,
+      url: `https://wxpusher.zjiecode.com/api/send/message/${c.WXPUSHER_SPT}/${encodeURIComponent(truncateForUrl(text))}`,
       init: { method: 'GET', headers: {} },
     };
   }
@@ -98,8 +138,12 @@ export async function sendPush({
     try {
       const res = await fetchImpl(req.url, req.init);
       const bodyText = typeof res.text === 'function' ? await res.text() : '';
-      if (res.ok) return { ok: true, channel, detail: bodyText.slice(0, 200) };
-      lastDetail = `HTTP ${res.status}: ${bodyText.slice(0, 200)}`;
+      if (res.ok && isBusinessSuccess(channel, bodyText)) {
+        return { ok: true, channel, detail: bodyText.slice(0, 200) };
+      }
+      lastDetail = res.ok
+        ? `HTTP ${res.status} 但业务失败: ${bodyText.slice(0, 200)}`
+        : `HTTP ${res.status}: ${bodyText.slice(0, 200)}`;
     } catch (err) {
       lastDetail = `请求异常: ${err?.message || err}`;
     }

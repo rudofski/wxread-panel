@@ -55,7 +55,13 @@ export function buildReport({
   reason = '',
   hasSuccess = false,
 }) {
-  const stateLabel = workflowState === 'active' ? 'active（正常）' : `${workflowState}（停用）`;
+  const STATE_LABEL = {
+    active: 'active（正常）',
+    missing: '未找到工作流',
+    disabled_manually: 'disabled_manually（被手动停用）',
+    disabled_inactivity: 'disabled_inactivity（无活动自动停用）',
+  };
+  const stateLabel = STATE_LABEL[workflowState] || `${workflowState}（异常）`;
   const lines = [];
 
   lines.push('## ⚠️ wxread 每日运行异常报告', '');

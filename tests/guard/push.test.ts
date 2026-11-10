@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 // @ts-expect-error — .mjs 无类型声明
-import { buildPushRequest, sendPush, PUSH_RETRY_DELAYS_MS } from '../../scripts/guard/push.mjs';
+import { buildPushRequest, sendPush, WXPUSHER_ENCODED_MAX, PUSH_RETRY_DELAYS_MS } from '../../scripts/guard/push.mjs';
 
 const creds = {
   PUSHPLUS_TOKEN: 'pp_token',
@@ -64,7 +64,8 @@ describe('buildPushRequest', () => {
 
 describe('sendPush 重试', () => {
   it('首次成功返回 ok:true', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('{}') });
+    // pushplus 成功是 HTTP 200 + {"code":200}，不能只给一个 '{}'
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: () => Promise.resolve('{"code":200}') });
     const res = await sendPush({
       method: 'pushplus', content: 'x', title: 'T', creds, fetchImpl: fetchMock, sleep: vi.fn(),
     });
@@ -103,5 +104,47 @@ describe('sendPush 重试', () => {
     expect(res.ok).toBe(false);
     expect(res.detail).toContain('ECONNRESET');
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('业务码判定（HTTP 200 不等于成功）', () => {
+  it('wxpusher 返回 200 + code:1001（token 失效）视为失败', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, text: () => Promise.resolve('{"code":1001,"msg":"invalid token"}'),
+    });
+    const res = await sendPush({
+      method: 'wxpusher', content: 'x', title: 'T', creds, fetchImpl: fetchMock, sleep: vi.fn(),
+    });
+    expect(res.ok).toBe(false);
+    expect(res.detail).toContain('业务失败');
+  });
+
+  it('serverchan 返回 200 + code:0 视为成功', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, text: () => Promise.resolve('{"code":0,"message":""}'),
+    });
+    const res = await sendPush({
+      method: 'serverchan', content: 'x', title: 'T', creds, fetchImpl: fetchMock, sleep: vi.fn(),
+    });
+    expect(res.ok).toBe(true);
+  });
+
+  it('telegram 返回 200 + ok:false 视为失败', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true, status: 200, text: () => Promise.resolve('{"ok":false,"description":"chat not found"}'),
+    });
+    const res = await sendPush({
+      method: 'telegram', content: 'x', title: 'T', creds, fetchImpl: fetchMock, sleep: vi.fn(),
+    });
+    expect(res.ok).toBe(false);
+  });
+
+  it('wxpusher 长中文报告的 URL 编码后不超过 6000 字符', () => {
+    const report = '微信阅读异常报告\n'.repeat(400);
+    const req = buildPushRequest({ method: 'wxpusher', content: report, title: 'T', creds });
+    expect(req).not.toBeNull();
+    const encoded = req!.url.split('/').pop() as string;
+    expect(encoded.length).toBeLessThanOrEqual(WXPUSHER_ENCODED_MAX + 12);
+    expect(decodeURIComponent(encoded)).toContain('微信阅读异常报告');
   });
 });

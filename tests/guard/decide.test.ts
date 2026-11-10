@@ -38,9 +38,54 @@ describe('decide 决策', () => {
     expect(r.needDispatch).toBe(false);
   });
 
-  it('宽限内已过 05:00：不补跑', () => {
+  it('05:30 是补跑窗口：过了 30 分钟宽限且今日无运行 → 补跑', () => {
     const r = decide({ mode: 'preflight', now: SH(5, 30), workflowState: 'active', runs: [] });
+    expect(r.needDispatch).toBe(true);
+  });
+
+  it('05:29 仍在宽限内：不补跑', () => {
+    const r = decide({ mode: 'preflight', now: SH(5, 29), workflowState: 'active', runs: [] });
     expect(r.needDispatch).toBe(false);
+  });
+
+  it('已有健康运行中的任务：不补跑', () => {
+    const r = decide({
+      mode: 'preflight', now: SH(5, 40), workflowState: 'active',
+      runs: [{ status: 'in_progress', conclusion: null, when: SH(5, 35).toISOString() }],
+    });
+    expect(r.needDispatch).toBe(false);
+    expect(r.reason).toContain('等待');
+  });
+
+  it('12:00 有运行中但未超时的任务：仍然告警（不能因为有东西在跑就闭嘴）', () => {
+    const r = decide({
+      mode: 'inspect', now: SH(12), workflowState: 'active',
+      runs: [{ status: 'in_progress', conclusion: null, when: SH(11, 40).toISOString() }],
+    });
+    expect(r.needAlert).toBe(true);
+    expect(r.needDispatch).toBe(false);
+  });
+
+  it('运行超过 120 分钟视为卡死：告警且允许补跑', () => {
+    const r = decide({
+      mode: 'inspect', now: SH(12), workflowState: 'active',
+      runs: [{ status: 'in_progress', conclusion: null, when: SH(9, 0).toISOString() }],
+    });
+    expect(r.needAlert).toBe(true);
+    expect(r.needDispatch).toBe(true);
+    expect(r.reason).toContain('卡死');
+  });
+
+  it('12:00 工作流仍被停用：也要告警（自动 enable 未必成功）', () => {
+    const r = decide({ mode: 'inspect', now: SH(12), workflowState: 'disabled_manually', runs: [] });
+    expect(r.needRepair).toBe(true);
+    expect(r.needAlert).toBe(true);
+  });
+
+  it('04:45 工作流被停用：只修不告警', () => {
+    const r = decide({ mode: 'preflight', now: SH(4, 45), workflowState: 'disabled_manually', runs: [] });
+    expect(r.needRepair).toBe(true);
+    expect(r.needAlert).toBe(false);
   });
 
   it('inspect 模式 12:00 且今日只有失败：需要告警', () => {

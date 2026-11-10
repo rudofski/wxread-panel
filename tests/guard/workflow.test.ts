@@ -80,7 +80,7 @@ describe('ghRequest', () => {
     expect(data).toEqual({ a: 1 });
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url).toBe('https://api.github.com/repos/o/r/actions/workflows');
-    expect(init.headers.Authorization).toBe('Bearer pat_x');
+    expect(init.headers.Authorization).toBe('token pat_x');
     expect(init.headers['X-GitHub-Api-Version']).toBe(API_VERSION);
   });
 
@@ -156,5 +156,20 @@ describe('workflow 模块', () => {
     expect(runs[0].durationSec).toBe(192);
     expect(runs[1].when).toBe('2026-11-10T04:45:00Z');
     expect(runs[1].durationSec).toBeNull();
+  });
+});
+
+describe('listTodayRuns 查询参数', () => {
+  it('显式要 100 条并按 created 过滤最近 36 小时', async () => {
+    const seen: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      seen.push(String(url));
+      return { ok: true, status: 200, text: async () => JSON.stringify({ workflow_runs: [] }) };
+    });
+    await listTodayRuns({ token: 't', owner: 'o', repo: 'r', workflowId: 1 }, {
+      fetchImpl, now: new Date('2026-11-10T04:00:00Z'),
+    });
+    expect(seen[0]).toContain('per_page=100');
+    expect(seen[0]).toContain('created=%3E%3D2026-11-08T16%3A00%3A00.000Z');
   });
 });

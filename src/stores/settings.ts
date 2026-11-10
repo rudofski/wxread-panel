@@ -99,6 +99,9 @@ export const useSettingsStore = defineStore('settings', () => {
     repoInfo.value = parseRepoUrl(url);
     workflows.value = [];
     selectedWorkflowId.value = '';
+    // 换仓库/连接失败时必须清空上一轮的证据，否则会显示「🟢 Actions 工作流正常」却连的是别的仓库
+    workflowState.value = null;
+    workflowStateError.value = '';
     const parsed = parseRepoUrl(url);
     if (!parsed) { repoStatus.value = 'error'; repoMessage.value = '无效的 GitHub 仓库地址'; return; }
     const result = await detectRepo(url);
@@ -162,9 +165,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const info = repoInfo.value;
     workflowStateError.value = '';
     try {
-      const wf = await getWorkflowState(info.owner, info.repo, 'deploy.yml');
-      // 匹配不到 deploy.yml 时退回取第一个工作流，避免仓库改名导致状态位永久灰掉
-      workflowState.value = wf ?? await getWorkflowState(info.owner, info.repo);
+      workflowState.value = await getWorkflowState(info.owner, info.repo, 'deploy.yml');
     } catch (e: any) {
       workflowState.value = null;
       workflowStateError.value = e?.message || String(e);

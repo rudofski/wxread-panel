@@ -1,7 +1,7 @@
-#!/usr/bin/env node
 // wxread 守护入口：读状态 → 决策 → 修复/补跑 → 巡检告警。
 // 退出码：0 = 一切正常或已完成应做动作；2 = 需要人工介入（启用失败等）；1 = 自身异常。
 import process from 'node:process';
+import { pathToFileURL } from 'node:url';
 import { parseGuardEnv, classifyHttpError } from './github.mjs';
 import { getTargetWorkflow, enableWorkflow, dispatchWorkflow, listTodayRuns } from './workflow.mjs';
 import { decide } from './decide.mjs';
@@ -12,6 +12,7 @@ import { emptyGuardState, readGuardState, writeGuardState, shouldDispatch, shoul
 const EXIT_OK = 0;
 const EXIT_NEED_HUMAN = 2;
 const EXIT_ERROR = 1;
+const RECHECK_DELAYS_MS = [2000, 4000, 8000];
 
 function parseArgs(argv) {
   const args = { mode: 'auto', dryRun: false };
@@ -26,6 +27,8 @@ function parseArgs(argv) {
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// 测试可在 main({ sleep, recheckDelays, pushSleep }) 里注入替身，避免真等 2s/4s/8s 与 5s/20s/60s
+const defaultDeps = () => ({ sleep, recheckDelays: RECHECK_DELAYS_MS, pushSleep: sleep });
 const log = (...parts) => console.log('[guard]', ...parts);
 
 function nowStamp() {
@@ -33,7 +36,8 @@ function nowStamp() {
   return d.toISOString().slice(0, 19).replace('T', ' ') + '+08:00';
 }
 
-async function main() {
+async function main(deps = {}) {
+  const { sleep: wait, recheckDelays, pushSleep } = { ...defaultDeps(), ...deps };
   const args = parseArgs(process.argv.slice(2));
   const mode = args.mode;
   const now = new Date();
@@ -60,7 +64,7 @@ async function main() {
       workflowState: 'missing', scheduledHour: cfg.scheduledHour, runs: [], actions,
       reason: `仓库 ${cfg.owner}/${cfg.repo} 中找不到 ${cfg.workflowPath}`, hasSuccess: false,
     });
-    const res = await sendPush({ method: process.env.PUSH_METHOD, content: report, title: '微信阅读-异常', creds });
+    const res = await sendPush({ method: process.env.PUSH_METHOD, content: report, title: '微信阅读-异常', creds, sleep: pushSleep });
     log('告警推送：', res.ok, res.detail);
     return EXIT_NEED_HUMAN;
   }
@@ -82,22 +86,31 @@ async function main() {
   // ---- 阶段 A：修复被停用的工作流 ----
   let currentState = wf.state;
   let state = await readGuardState(cfg, now);
+  // 自动修复失败时必须强行走一次告警：否则用户只会在 GitHub 失败邮件里知道出事，
+  // 而这条链路本身就是为了不依赖用户盯 Actions 页面。
+  let forceAlert = false;
   if (currentState !== 'active') {
     actions.push(`${nowStamp()} 检测到工作流状态 ${currentState}，调用 enable`);
     if (!args.dryRun) {
       try {
         await enableWorkflow(cfg, wf.id);
-        await sleep(2000);
-        const recheck = await getTargetWorkflow(cfg);
-        currentState = recheck?.state || currentState;
+        // GitHub 的状态刷新不是瞬时的，固定 sleep 2s 太脆；改成 2s/4s/8s 轮询复核
+        for (const delay of recheckDelays) {
+          if (delay > 0) await wait(delay);
+          const recheck = await getTargetWorkflow(cfg);
+          currentState = recheck?.state || currentState;
+          if (currentState === 'active') break;
+        }
         actions.push(`启用后复核状态：${currentState}`);
         if (currentState !== 'active') {
           actions.push('启用未生效，需要人工到 Actions 页面点击 Enable workflows');
           exitCode = EXIT_NEED_HUMAN;
+          forceAlert = true;
         }
       } catch (err) {
-        actions.push(`启用失败：${err.message}`);
+        actions.push(`启用失败：${err.message}（${classifyHttpError(err?.status, err?.body || '')}）`);
         exitCode = EXIT_NEED_HUMAN;
+        forceAlert = true;
       }
     } else {
       actions.push('dry-run：跳过 enable');
@@ -125,7 +138,6 @@ async function main() {
           try {
             await dispatchWorkflow(cfg, wf.id);
             state.dispatchedAt = nowStamp();
-            await writeGuardState(cfg, state);
           } catch (err) {
             state.lastError = err.message;
             actions.push(`补跑失败：${err.message}`);
@@ -139,20 +151,21 @@ async function main() {
       }
     }
 
-    if (pass === 'inspect' && decision.needAlert && shouldAlert(state)) {
+    if (pass === 'inspect' && (decision.needAlert || forceAlert) && shouldAlert(state)) {
       const report = buildReport({
         now, owner: cfg.owner, repo: cfg.repo, workflowPath: cfg.workflowPath,
         workflowState: currentState, scheduledHour: cfg.scheduledHour, runs, actions,
         reason: decision.reason, hasSuccess: runs.some((r) => r.conclusion === 'success'),
       });
-      const res = await sendPush({ method: process.env.PUSH_METHOD, content: report, title: '微信阅读-异常', creds });
+      const res = await sendPush({ method: process.env.PUSH_METHOD, content: report, title: '微信阅读-异常', creds, sleep: pushSleep });
       log('告警推送：', res.ok, res.channel, res.detail);
       if (res.ok) {
         state.alertedAt = nowStamp();
-        await writeGuardState(cfg, state);
       } else {
-        // 推送失败不阻断下次尝试：保留 alertedAt 为空，并在日志里明确原因
+        // 推送失败不阻断下次尝试：保留 alertedAt 为空，并在日志里明确原因。
+        // 同时让 job 变红 —— 当天最后一次触发推送不出去时，邮件是唯一兜底。
         actions.push(`告警推送失败：${res.detail}`);
+        exitCode = EXIT_NEED_HUMAN;
       }
     }
   }
@@ -166,10 +179,23 @@ async function main() {
   return exitCode;
 }
 
-main()
+// 只在直接执行时跑 main；被测试 import 时不自动启动，导出内部函数供端到端测试驱动
+const invokedDirectly = (() => {
+  try {
+    return !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+  } catch {
+    return false;
+  }
+})();
+
+export { main, parseArgs, EXIT_OK, EXIT_NEED_HUMAN, EXIT_ERROR };
+
+if (invokedDirectly) {
+  main()
   .then((code) => process.exit(code))
-  .catch((err) => {
-    console.error('[guard] 未捕获异常：', err?.stack || err);
-    if (err?.status) console.error('[guard]', classifyHttpError(err.status, err.body || ''));
-    process.exit(EXIT_ERROR);
-  });
+    .catch((err) => {
+      console.error('[guard] 未捕获异常：', err?.stack || err);
+      if (err?.status) console.error('[guard]', classifyHttpError(err.status, err.body || ''));
+      process.exit(EXIT_ERROR);
+    });
+}

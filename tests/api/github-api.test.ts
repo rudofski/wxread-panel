@@ -94,7 +94,8 @@ describe('GitHub API 交互', () => {
     });
     const s = await wxreadAdapter.fromGitHub('o', 'r');
     expect(s.readMinutes).toBe(40);
-    expect(s.pushMethod).toBe('wxpusher');
+    // PUSH_METHOD 是 Secret，Variables 里即使残留旧值也不能回读（否则保存时会把错误的渠道写回去）
+    expect(s.pushMethod).toBe('');
   });
 
   it('wxreadAdapter.fromGitHub 优先 READ_MINUTES 新格式', async () => {

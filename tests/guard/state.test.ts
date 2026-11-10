@@ -80,3 +80,50 @@ describe('去重判定', () => {
     expect(shouldAlert(s)).toBe(true);
   });
 });
+
+describe('读取错误不能被当成「今天还没做」', () => {
+  it('403（PAT 缺 Variables 权限）上抛，而不是返回空状态', async () => {
+    const io = { request: vi.fn().mockRejectedValue(Object.assign(new Error('403'), { status: 403 })) };
+    await expect(readGuardState(cfg, now, io)).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('500 也上抛', async () => {
+    const io = { request: vi.fn().mockRejectedValue(Object.assign(new Error('500'), { status: 500 })) };
+    await expect(readGuardState(cfg, now, io)).rejects.toMatchObject({ status: 500 });
+  });
+});
+
+describe('写入重试', () => {
+  it('PATCH 404 → POST 成功', async () => {
+    const request = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('404'), { status: 404 }))
+      .mockResolvedValueOnce({});
+    await writeGuardState(cfg, emptyGuardState(now), { request });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[1][2]).toMatchObject({ method: 'POST' });
+  });
+
+  it('POST 撞上别人刚建的（409）后下一轮 PATCH 成功', async () => {
+    const request = vi.fn()
+      .mockRejectedValueOnce(Object.assign(new Error('404'), { status: 404 }))
+      .mockRejectedValueOnce(Object.assign(new Error('409'), { status: 409 }))
+      .mockResolvedValueOnce({});
+    await writeGuardState(cfg, emptyGuardState(now), { request });
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request.mock.calls[2][2]).toMatchObject({ method: 'PATCH' });
+  });
+
+  it('500 重试三次后抛错', async () => {
+    const request = vi.fn().mockRejectedValue(Object.assign(new Error('500'), { status: 500 }));
+    await expect(
+      writeGuardState(cfg, emptyGuardState(now), { request }, { sleep: vi.fn().mockResolvedValue(undefined) }),
+    ).rejects.toThrow();
+    expect(request).toHaveBeenCalledTimes(3);
+  });
+
+  it('403 立即抛错，不重试', async () => {
+    const request = vi.fn().mockRejectedValue(Object.assign(new Error('403'), { status: 403 }));
+    await expect(writeGuardState(cfg, emptyGuardState(now), { request })).rejects.toMatchObject({ status: 403 });
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+});

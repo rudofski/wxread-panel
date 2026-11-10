@@ -202,7 +202,9 @@ export const wxreadAdapter = {
     else { readMinutes = Math.round(parseInt(rawReadNum) / 2); }
     return {
       readMinutes,
-      pushMethod: vars.PUSH_METHOD || '',
+      // PUSH_METHOD 是 Secret，GitHub 永远不回传值；过去从 Variables 回读会拿到历史残留的旧值，
+      // 让面板显示错误渠道、并在保存时把错值写回 Secret。这里明确不回读，以本地记忆为准。
+      pushMethod: '',
       wxpusherToken: '',
       curlBash: '',
     };

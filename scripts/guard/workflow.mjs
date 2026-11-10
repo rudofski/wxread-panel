@@ -1,7 +1,7 @@
 // 工作流层面的三个动作：读状态、启用、补跑，以及读运行历史。
 import { ghRequest } from './github.mjs';
 
-const RUNS_PER_PAGE = 30;
+const RUNS_PER_PAGE = 100;
 
 /** 按 workflowPath（如 deploy.yml）选中目标工作流；找不到返回 null */
 export async function getTargetWorkflow(cfg, { fetchImpl } = {}) {
@@ -42,11 +42,14 @@ export async function dispatchWorkflow(cfg, workflowId, { fetchImpl } = {}) {
 }
 
 /** 最近一批运行记录（按创建时间倒序），映射成 decide 需要的形状 */
-export async function listTodayRuns(cfg, { fetchImpl } = {}) {
+export async function listTodayRuns(cfg, { fetchImpl, now = new Date() } = {}) {
+  // 只看最近 36 小时：够覆盖「今天」以及跨日运行，避免翻全部历史。
+  // 默认 per_page=30 在多次手动重跑时会把今天挤出去，所以显式要 100 条。
+  const since = new Date(now.getTime() - 36 * 3600 * 1000).toISOString();
   const data = await ghRequest(
     '/repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs',
     { owner: cfg.owner, repo: cfg.repo, workflow_id: cfg.workflowId },
-    { token: cfg.token, fetchImpl },
+    { token: cfg.token, fetchImpl, query: { per_page: String(RUNS_PER_PAGE), created: `>=${since}` } },
   );
   return (data?.workflow_runs || []).slice(0, RUNS_PER_PAGE).map((r) => {
     const started = r.run_started_at || r.created_at;

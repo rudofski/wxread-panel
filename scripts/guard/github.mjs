@@ -24,8 +24,15 @@ export function classifyHttpError(status, body = '') {
   return `GitHub 请求失败（${status}）：${detail}`;
 }
 
+/** 日志里不许出现 token：异常体里可能回显 Authorization/query */
+export function maskSecrets(text) {
+  return String(text ?? '')
+    .replace(/(token|authorization|pat)[=:][^&\s"']+/gi, '$1=REDACTED')
+    .slice(0, 300);
+}
+
 function buildError(status, body) {
-  const err = new Error(classifyHttpError(status, body));
+  const err = new Error(classifyHttpError(status, maskSecrets(body)));
   err.status = status;
   err.body = body;
   return err;
@@ -36,13 +43,18 @@ function buildError(status, body) {
  * @param {object} params        占位符取值
  * @param {{token:string, fetchImpl?:Function, method?:string, body?:any}} opts
  */
-export async function ghRequest(path, params, { token, fetchImpl = globalThis.fetch, method = 'GET', body } = {}) {
-  const url = API_BASE + fillTemplate(path, params);
+export async function ghRequest(
+  path,
+  params,
+  { token, fetchImpl = globalThis.fetch, method = 'GET', body, query } = {},
+) {
+  let url = API_BASE + fillTemplate(path, params);
+  if (query) url += '?' + new URLSearchParams(query).toString();
   const init = {
     method,
     headers: {
       Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${token}`,
+      Authorization: `token ${token}`,
       'X-GitHub-Api-Version': API_VERSION,
       'User-Agent': 'wxread-guard',
     },
@@ -89,7 +101,8 @@ export function parseGuardEnv(env = process.env) {
     workflowPath: (env.WXREAD_WORKFLOW || 'deploy.yml').trim(),
     ref: (env.WXREAD_REF || 'main').trim(),
     scheduledHour: num(env.WXREAD_SCHEDULED_HOUR, 5),
-    graceMin: num(env.WXREAD_GRACE_MIN, 60),
+    graceMin: num(env.WXREAD_GRACE_MIN, 30),
     inspectHour: num(env.WXREAD_INSPECT_HOUR, 12),
+    staleMin: num(env.WXREAD_STALE_MIN, 120),
   };
 }
