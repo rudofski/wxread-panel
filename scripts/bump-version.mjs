@@ -22,9 +22,14 @@ for (const file of ['package.json', 'package-lock.json']) {
   console.log(`✓ ${file}: ${cur} → ${target}`);
 }
 
+// deploy.sh 已改为从 package.json 派生版本号；这里只做兼容性清理（若仍有硬编码就顺手对齐）
 const sh = readFileSync('deploy.sh', 'utf8');
 const shNext = sh.replace(/v\d+\.\d+\.\d+/g, `v${target}`);
-writeFileSync('deploy.sh', shNext);
-console.log('✓ deploy.sh: 推送标签已更新');
+if (shNext !== sh) {
+  writeFileSync('deploy.sh', shNext);
+  console.log('✓ deploy.sh: 硬编码标签已对齐');
+} else {
+  console.log('✓ deploy.sh: 无需改动（从 package.json 派生）');
+}
 
 console.log(`\n✅ 版本已同步至 ${target}。接下来：git add -A && git commit && git push`);

@@ -95,6 +95,33 @@ export async function listWorkflows(owner: string, repo: string): Promise<Workfl
   return (resp.data.workflows || []).map(w => ({ id: w.id, name: w.name || w.path, path: w.path }));
 }
 
+// ============ 工作流状态（守护用） ============
+
+export interface WorkflowState { id: number; name: string; path: string; state: string; }
+
+/**
+ * 读取工作流状态。state 取值：active / disabled_manually / disabled_inactivity / deleted。
+ * pathOrId 传 'deploy.yml' 时按路径后缀匹配，传数字时按 id 匹配，省略时取第一个。
+ */
+export async function getWorkflowState(
+  owner: string, repo: string, pathOrId?: string | number,
+): Promise<WorkflowState | null> {
+  const client = getOctokit();
+  const resp = await client.request('GET /repos/{owner}/{repo}/actions/workflows', { owner, repo });
+  const list = ((resp.data as any).workflows || []) as WorkflowState[];
+  if (list.length === 0) return null;
+  if (pathOrId === undefined) return { ...list[0] };
+  if (typeof pathOrId === 'number') {
+    const hit = list.find(w => w.id === pathOrId);
+    return hit ? { ...hit } : null;
+  }
+  const target = pathOrId.replace(/^\.\//, '');
+  const hit = list.find(
+    w => w.path === target || w.path.endsWith('/' + target) || w.path === `.github/workflows/${target}`,
+  );
+  return hit ? { ...hit } : null;
+}
+
 export async function listDashboardRunsByRepo(owner: string, repo: string, perPage: number = 365): Promise<RunInfo[]> {
   const client = getOctokit();
   const resp = await client.rest.actions.listWorkflowRunsForRepo({ owner, repo, per_page: perPage });
@@ -175,7 +202,9 @@ export const wxreadAdapter = {
     else { readMinutes = Math.round(parseInt(rawReadNum) / 2); }
     return {
       readMinutes,
-      pushMethod: vars.PUSH_METHOD || '',
+      // PUSH_METHOD 是 Secret，GitHub 永远不回传值；过去从 Variables 回读会拿到历史残留的旧值，
+      // 让面板显示错误渠道、并在保存时把错值写回 Secret。这里明确不回读，以本地记忆为准。
+      pushMethod: '',
       wxpusherToken: '',
       curlBash: '',
     };
@@ -184,7 +213,9 @@ export const wxreadAdapter = {
   async toGitHub(owner: string, repo: string, settings: PanelSettings): Promise<void> {
     await updateVariable(owner, repo, 'READ_NUM', String(settings.readMinutes * 2));
     try { await updateVariable(owner, repo, 'READ_MINUTES', String(settings.readMinutes)); } catch {}
-    if (settings.pushMethod) await updateVariable(owner, repo, 'PUSH_METHOD', settings.pushMethod);
+    // wxread/deploy.yml 读的是 secrets.PUSH_METHOD（不是 Variables），
+    // 此前写成 Variable 导致面板里选的推送方式在 wxread 侧从未生效。
+    if (settings.pushMethod) await updateSecret(owner, repo, 'PUSH_METHOD', settings.pushMethod);
   },
 
   async pushSecrets(owner: string, repo: string, settings: PanelSettings): Promise<void> {

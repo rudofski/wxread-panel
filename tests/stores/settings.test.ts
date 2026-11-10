@@ -60,4 +60,21 @@ describe('settings store', () => {
     expect(store.readMinutes).toBe(40);
     expect(store.repoUrl).toBe('');
   });
+
+  it('remoteSecretNames 名单包含 PUSH_METHOD 与各渠道凭证', async () => {
+    const { remoteSecretNames } = await import('@/stores/settings');
+    expect(remoteSecretNames).toContain('PUSH_METHOD');
+    expect(remoteSecretNames).toContain('WXPUSHER_SPT');
+    expect(remoteSecretNames).toContain('PUSHPLUS_TOKEN');
+    expect(remoteSecretNames).toContain('TELEGRAM_BOT_TOKEN');
+    expect(remoteSecretNames).toContain('TELEGRAM_CHAT_ID');
+    expect(remoteSecretNames).toContain('SERVERCHAN_SPT');
+    expect(remoteSecretNames).toContain('WXREAD_CURL_BASH');
+  });
+
+  it('workflowState 初始为 null，workflowStateError 为空串', () => {
+    const store = useSettingsStore();
+    expect(store.workflowState).toBeNull();
+    expect(store.workflowStateError).toBe('');
+  });
 });

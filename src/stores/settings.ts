@@ -1,10 +1,17 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
-import { detectRepo, parseRepoUrl, wxreadAdapter, listWorkflows, secretExists, type RepoInfo, type WorkflowInfo } from '@/api/github';
+import { detectRepo, parseRepoUrl, wxreadAdapter, listWorkflows, secretExists, getWorkflowState, type RepoInfo, type WorkflowInfo, type WorkflowState } from '@/api/github';
 import type { PanelSettings } from '@/api/github';
 
 // 记忆存储：配置持久化到 localStorage，重开面板自动恢复（wxread 回读依赖此恢复仓库地址）
 const PERSIST_KEY = 'wxread_panel_settings';
+
+// 检测目标仓库中关键 Secrets 是否存在（面板状态位依赖此名单）
+// PUSH_METHOD 也必须是 Secret：wxread/config.py 读的是 os.getenv('PUSH_METHOD')
+export const remoteSecretNames = [
+  'WXREAD_CURL_BASH', 'WXPUSHER_SPT', 'PUSHPLUS_TOKEN',
+  'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'SERVERCHAN_SPT', 'PUSH_METHOD',
+] as const;
 
 interface PersistedSettings {
   repoUrl?: string;
@@ -25,6 +32,9 @@ export const useSettingsStore = defineStore('settings', () => {
   const repoMessage = ref('');
   const workflows = ref<WorkflowInfo[]>([]);
   const selectedWorkflowId = ref<number | string>('');
+  // 工作流状态：面板「Actions 工作流正常 / 已停用」状态位的数据源
+  const workflowState = ref<WorkflowState | null>(null);
+  const workflowStateError = ref('');
 
   const readMinutes = ref(40);
   const pushMethod = ref('wxpusher');
@@ -89,6 +99,9 @@ export const useSettingsStore = defineStore('settings', () => {
     repoInfo.value = parseRepoUrl(url);
     workflows.value = [];
     selectedWorkflowId.value = '';
+    // 换仓库/连接失败时必须清空上一轮的证据，否则会显示「🟢 Actions 工作流正常」却连的是别的仓库
+    workflowState.value = null;
+    workflowStateError.value = '';
     const parsed = parseRepoUrl(url);
     if (!parsed) { repoStatus.value = 'error'; repoMessage.value = '无效的 GitHub 仓库地址'; return; }
     const result = await detectRepo(url);
@@ -112,6 +125,7 @@ export const useSettingsStore = defineStore('settings', () => {
       }
       // Secrets 仅用于状态卡展示，不阻塞工作流与运行记录加载。
       void refreshSecretStatus();
+      void refreshWorkflowState();
     } else {
       if (requestId !== connectRequestId) return;
       repoStatus.value = 'error'; repoMessage.value = result.message;
@@ -133,7 +147,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // 检测目标仓库中关键 Secrets 是否存在
   async function refreshSecretStatus() {
     if (!repoInfo.value) return;
-    const names = ['WXREAD_CURL_BASH', 'WXPUSHER_SPT', 'PUSHPLUS_TOKEN', 'TELEGRAM_BOT_TOKEN', 'SERVERCHAN_SPT'];
+    const names = remoteSecretNames;
     const status: Record<string, boolean> = {};
     const info = repoInfo.value; // 提前取出，避免 TS 在 Promise.allSettled 回调中报 null
     // 并行检测所有 Secrets（每个 secretExists 一次 API 调用，并行后只等一次网络往返）
@@ -144,5 +158,19 @@ export const useSettingsStore = defineStore('settings', () => {
     remoteSecrets.value = status;
   }
 
-  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, readMinutes, pushMethod, wxpusherToken, curlBash, pushplusToken, tgBotToken, tgChatId, serverchanToken, remoteSecrets, refreshSecretStatus, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
+  // 读取 wxread 的 Actions 工作流状态（active / disabled_manually / ...）
+  // fork 仓库的 workflows 会被 GitHub 停用，此状态位是「多久没跑」的第一现场证据。
+  async function refreshWorkflowState() {
+    if (!repoInfo.value) return;
+    const info = repoInfo.value;
+    workflowStateError.value = '';
+    try {
+      workflowState.value = await getWorkflowState(info.owner, info.repo, 'deploy.yml');
+    } catch (e: any) {
+      workflowState.value = null;
+      workflowStateError.value = e?.message || String(e);
+    }
+  }
+
+  return { repoUrl, repoInfo, repoStatus, repoMessage, workflows, selectedWorkflowId, workflowState, workflowStateError, readMinutes, pushMethod, wxpusherToken, curlBash, pushplusToken, tgBotToken, tgChatId, serverchanToken, remoteSecrets, refreshSecretStatus, refreshWorkflowState, pushMethods, quickReadOptions, readCount, connectRepo, saveConfig };
 });

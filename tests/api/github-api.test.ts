@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// sealedBox 依赖 libsodium（wasm）；该用例只验证「写到哪个 secret 名」，
+// 加密本身由 tests/utils/sealedBox.test.ts 覆盖，这里打桩避免引入 wasm 初始化。
+vi.mock('@/utils/sealedBox', () => ({
+  sealedBoxEncryptToBase64: vi.fn().mockResolvedValue('ZW5jcnlwdGVk'),
+}));
+
 vi.mock('@octokit/rest', () => {
   const mockRequest = vi.fn();
   const mockReposGet = vi.fn();
@@ -88,7 +94,8 @@ describe('GitHub API 交互', () => {
     });
     const s = await wxreadAdapter.fromGitHub('o', 'r');
     expect(s.readMinutes).toBe(40);
-    expect(s.pushMethod).toBe('wxpusher');
+    // PUSH_METHOD 是 Secret，Variables 里即使残留旧值也不能回读（否则保存时会把错误的渠道写回去）
+    expect(s.pushMethod).toBe('');
   });
 
   it('wxreadAdapter.fromGitHub 优先 READ_MINUTES 新格式', async () => {
@@ -121,8 +128,30 @@ describe('GitHub API 交互', () => {
     await expect(secretExists('o', 'r', 'X')).rejects.toThrow();
   });
 
-  it('getRunLogs 拉取第一个 job 的纯文本日志', async () => {
-    __mockListJobs.mockResolvedValue({ data: { jobs: [{ id: 99 }] } });
+  it('toGitHub 把 PUSH_METHOD 写成 Secret 而非 Variable', async () => {
+    // PATCH READ_NUM → PATCH READ_MINUTES → GET public-key → PUT secret
+    __mockRequest
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ data: { key: 'a2V5', key_id: 'kid1' } })
+      .mockResolvedValueOnce({});
+    await wxreadAdapter.toGitHub('o', 'r', {
+      readMinutes: 40, pushMethod: 'wxpusher', wxpusherToken: '', curlBash: '',
+    });
+    const calls = __mockRequest.mock.calls.map((c) => c[0]);
+    expect(calls).toContain('PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}');
+    const putCall = __mockRequest.mock.calls.find(
+      (c) => c[0] === 'PUT /repos/{owner}/{repo}/actions/secrets/{secret_name}',
+    );
+    expect(putCall![1]).toEqual(expect.objectContaining({ secret_name: 'PUSH_METHOD' }));
+    // 不得再以 Variable 形式写 PUSH_METHOD
+    const variableWrites = __mockRequest.mock.calls.filter(
+      (c) => String(c[0]).includes('/actions/variables') && c[1]?.name === 'PUSH_METHOD',
+    );
+    expect(variableWrites).toHaveLength(0);
+  });
+
+  it('getRunLogs 拉取第一个 job 的纯文本日志', async () => {    __mockListJobs.mockResolvedValue({ data: { jobs: [{ id: 99 }] } });
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve('Error: Cookie expired') });
     vi.stubGlobal('fetch', fetchMock);
     const logs = await getRunLogs('o', 'r', 7);
